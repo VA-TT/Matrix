@@ -24,6 +24,20 @@ public:
   Matrix &operator=(Matrix &&) = default;
   ~Matrix() = default;
 
+  // reset zero matrice
+  void resetZero()
+  {
+    for (auto &e : m_elements)
+      e = 0;
+  }
+
+  void resetIdentity()
+  {
+    for (std::size_t i = 0; i < this->rows(); ++i)
+      for (std::size_t j = 0; j < this->cols(); ++j)
+        (*this)(i, j) = (i == j ? 1 : 0);
+  }
+
   T &operator[](std::size_t i)
   {
     assert(i < this->length());
@@ -49,9 +63,10 @@ public:
   constexpr std::size_t rows() const { return nRows; }
   constexpr int length() const { return nRows * nCols; }
 
+  // outputting matrix
   friend std::ostream &operator<<(std::ostream &out, const Matrix &matrix)
   {
-    constexpr int tab = 6; // Độ rộng mỗi cột
+    constexpr int tab = 6;
     for (std::size_t i = 0; i < nRows; ++i)
     {
       out << "|";
@@ -65,7 +80,7 @@ public:
   }
 
   // Matrix algebra
-  friend Matrix operator*(int k, const Matrix &m)
+  friend Matrix operator*(T k, const Matrix &m)
   {
     Matrix<T, nRows, nCols> result{m};
     for (auto &e : result.m_elements)
@@ -77,7 +92,7 @@ public:
 
   friend Matrix operator+(const Matrix &m1, const Matrix &m2)
   {
-    assert(m1.cols() == m2.cols() && m1.rows() == m2.rows() && "Unable to perform matrix addition/substraction.\n");
+    assert(m1.cols() == m2.cols() && m1.rows() == m2.rows() && "Unable to perform matrix addition/substraction.");
     Matrix<T, nRows, nCols> result{m1};
     for (std::size_t i{0}; i < result.length(); ++i)
       result[i] += m2[i];
@@ -86,14 +101,12 @@ public:
 
   friend Matrix operator-(const Matrix &m1, const Matrix &m2)
   {
-    Matrix<T, nRows, nCols> result{m1 + (-1) * m2};
-    return result;
+    return m1 + (-1) * m2;
   }
 
-  friend Matrix operator-(const Matrix &m)
+  Matrix operator-() const
   {
-    Matrix<T, nRows, nCols> result{(-1) * m};
-    return result;
+    return (-1) * (*this);
   }
 
   friend bool operator==(const Matrix &m1, const Matrix &m2) // co the vut ra ngoai duoc
@@ -121,7 +134,7 @@ public:
 template <typename T, std::size_t R1, std::size_t C1, std::size_t R2, std::size_t C2>
 Matrix<T, R1, C2> operator*(const Matrix<T, R1, C1> &m1, const Matrix<T, R2, C2> &m2)
 {
-  assert(C1 == R2 && "Not suitable for matrix multiplication.\n");
+  assert(C1 == R2 && "Not suitable for matrix multiplication.");
   Matrix<T, R1, C2> result{};
   for (std::size_t i = 0; i < R1; ++i)
     for (std::size_t j = 0; j < C2; ++j)
@@ -132,27 +145,37 @@ Matrix<T, R1, C2> operator*(const Matrix<T, R1, C1> &m1, const Matrix<T, R2, C2>
 
 int main()
 {
-  Matrix<int, 2, 3> A{2, 1, -1,
-                      1, -1, 1};
-  Matrix<int, 2, 3> B{4, -2, 1,
-                      2, -4, -2};
-  Matrix<int, 2, 2> C{1, 2,
-                      2, 1};
-  Matrix<int, 2, 2> D{3, 4,
-                      4, 3};
-  Matrix<int, 2, 1> E{1, 2};
-  Matrix<int, 1, 2> G{1, 2,
-                      2, 4};
-  Matrix<int, 1, 2> H{2, 1, 1, 3};
-  Matrix<int, 1, 2> I{4, 3,
-                      0, 2};
+  // Matrix<int, 2, 3> A{2, 1, -1,
+  //                     1, -1, 1};
+  // Matrix<int, 2, 3> B{4, -2, 1,
+  //                     2, -4, -2};
+  // Matrix<int, 2, 2> C{1, 2,
+  //                     2, 1};
+  // Matrix<int, 2, 2> D{3, 4,
+  //                     4, 3};
+  // Matrix<int, 1, 2> E{1, 2};
+  // Matrix<int, 2, 2> G{1, 2,
+  //                     2, 4};
+  // Matrix<int, 2, 2> H{2, 1,
+  //                     1, 3};
+  // Matrix<int, 2, 2> I{4, 3,
+  //                     0, 2};
 
-  std::cout << B - 2 * A << '\n';
-  // std::cout << 3 * C - E << '\n';
-  // std::cout << A * C << '\n';
-  std::cout << C * D << '\n';
-  std::cout << C * B << '\n';
-  std::cout << std::boolalpha << (G * H == G * I) << '\n';
-  std::cout << std::boolalpha << (H != I) << '\n';
+  // std::cout << B - 2 * A << '\n';
+  // std::cout << C + E << '\n';
+  // // std::cout << A * C << '\n';
+  // std::cout << C * D << '\n';
+  // std::cout << C * B << '\n';
+  // std::cout << std::boolalpha << (G * H == G * I) << '\n';
+  // std::cout << std::boolalpha << (H != I) << '\n';
+
+  Matrix<int, 3, 3> A{1, 1, 1,
+                      1, 2, 3,
+                      1, 3, 4};
+  Matrix<int, 3, 3> D{2, 0, 0,
+                      0, 3, 0,
+                      0, 0, 4};
+  std::cout << A * D << '\n';
+  std::cout << D * A << '\n';
   return 0;
 }
