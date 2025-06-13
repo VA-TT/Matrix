@@ -24,6 +24,16 @@ public:
   Matrix &operator=(Matrix &&) = default;
   ~Matrix() = default;
 
+  T &operator[](std::size_t i)
+  {
+    assert(i < this->length());
+    return m_elements[i];
+  }
+  const T &operator[](std::size_t i) const
+  {
+    assert(i < this->length());
+    return m_elements[i];
+  }
   T &operator()(std::size_t i, std::size_t j)
   {
     assert(i < nRows && j < nCols);
@@ -55,9 +65,9 @@ public:
   }
 
   // Matrix algebra
-  friend Matrix operator*(int k, const Matrix &matrix)
+  friend Matrix operator*(int k, const Matrix &m)
   {
-    Matrix<T, nRows, nCols> result{matrix};
+    Matrix<T, nRows, nCols> result{m};
     for (auto &e : result.m_elements)
     {
       e *= k;
@@ -70,7 +80,7 @@ public:
     assert(m1.cols() == m2.cols() && m1.rows() == m2.rows() && "Unable to perform matrix addition/substraction.\n");
     Matrix<T, nRows, nCols> result{m1};
     for (std::size_t i{0}; i < result.length(); ++i)
-      result.m_elements[i] += m2.m_elements[i];
+      result[i] += m2[i];
     return result;
   }
 
@@ -84,6 +94,27 @@ public:
   {
     Matrix<T, nRows, nCols> result{(-1) * m};
     return result;
+  }
+
+  friend bool operator==(const Matrix &m1, const Matrix &m2) // co the vut ra ngoai duoc
+  {
+    if (m1.cols() != m2.cols() || m1.rows() != m2.rows())
+    {
+      return false;
+    }
+    for (std::size_t i{0}; i < m1.length(); i++)
+    {
+      if (m1[i] != m2[i])
+      {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  friend bool operator!=(const Matrix &m1, const Matrix &m2)
+  {
+    return !(m1 == m2);
   }
 };
 
@@ -109,12 +140,19 @@ int main()
                       2, 1};
   Matrix<int, 2, 2> D{3, 4,
                       4, 3};
-  Matrix<int, 1, 2> E{1,
-                      2};
+  Matrix<int, 2, 1> E{1, 2};
+  Matrix<int, 1, 2> G{1, 2,
+                      2, 4};
+  Matrix<int, 1, 2> H{2, 1, 1, 3};
+  Matrix<int, 1, 2> I{4, 3,
+                      0, 2};
+
   std::cout << B - 2 * A << '\n';
   // std::cout << 3 * C - E << '\n';
   // std::cout << A * C << '\n';
   std::cout << C * D << '\n';
   std::cout << C * B << '\n';
+  std::cout << std::boolalpha << (G * H == G * I) << '\n';
+  std::cout << std::boolalpha << (H != I) << '\n';
   return 0;
 }
