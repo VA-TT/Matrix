@@ -24,18 +24,36 @@ public:
   Matrix &operator=(Matrix &&) = default;
   ~Matrix() = default;
 
-  // reset zero matrice
+  static Matrix zero()
+  {
+    return Matrix{};
+  }
   void resetZero()
   {
-    for (auto &e : m_elements)
-      e = 0;
+    (*this) = Matrix::zero();
   }
 
+  static Matrix ones()
+  {
+    Matrix result{};
+    std::fill(result.m_elements.begin(), result.m_elements.end(), 1);
+    return result;
+  }
+  void resetOnes()
+  {
+    (*this) = Matrix::ones();
+  }
+
+  static Matrix identity()
+  {
+    Matrix result{};
+    for (std::size_t i = 0; i < std::min(nRows, nCols); ++i)
+      result(i, i) = 1;
+    return result;
+  }
   void resetIdentity()
   {
-    for (std::size_t i = 0; i < this->rows(); ++i)
-      for (std::size_t j = 0; j < this->cols(); ++j)
-        (*this)(i, j) = (i == j ? 1 : 0);
+    (*this) = Matrix::identity();
   }
 
   T &operator[](std::size_t i)
@@ -89,6 +107,10 @@ public:
     }
     return result;
   }
+  friend Matrix operator*(const Matrix &m, T k)
+  {
+    return k * m;
+  }
 
   friend Matrix operator+(const Matrix &m1, const Matrix &m2)
   {
@@ -129,6 +151,45 @@ public:
   {
     return !(m1 == m2);
   }
+
+  Matrix<T, nCols, nRows> transpose() const
+  {
+    Matrix<T, nCols, nRows> result{};
+    for (std::size_t j = 0; j < nCols; ++j)
+    {
+      for (std::size_t i = 0; i < nRows; ++i)
+      {
+        result(j, i) = (*this)(i, j);
+      }
+    }
+    return result;
+  }
+
+  // Matrix<T, nCols, nRows> inverse() const {}
+
+  bool isSquare() const
+  {
+    return nRows == nCols;
+  }
+
+  bool isSymmetric() const
+  {
+    return ((*this) == this->transpose());
+  }
+
+  bool isSkewSymmetric() const
+  {
+    return (-(*this) == (this->transpose()));
+  }
+
+  bool isOrthogonal() const
+  {
+    if (this->isSquare())
+    {
+      return (this->inverse() == this->transpose());
+    }
+    return false;
+  }
 };
 
 template <typename T, std::size_t R1, std::size_t C1, std::size_t R2, std::size_t C2>
@@ -143,12 +204,32 @@ Matrix<T, R1, C2> operator*(const Matrix<T, R1, C1> &m1, const Matrix<T, R2, C2>
   return result;
 }
 
+template <typename T, std::size_t R1, std::size_t C1, std::size_t R2, std::size_t C2>
+bool arePairOrthogonal(const Matrix<T, R1, C1> &m1, const Matrix<T, R2, C2> &m2)
+{
+  if ((m1 != Matrix<T, R1, C1>::zero()) && (m2 != Matrix<T, R2, C2>::zero()))
+  {
+    return ((m1.transpose() * m2) == Matrix<T, R1, C2>::identity());
+  }
+  return false; // Both matrices must not be 0
+}
+
+template <typename T, std::size_t nRows, std::size_t nCols>
+T trace(const Matrix<T, nRows, nCols> &m)
+{
+  static_assert(nRows == nCols, "Trace chỉ áp dụng cho ma trận vuông");
+  T result{};
+  for (std::size_t i = 0; i < nRows; ++i)
+    result += m(i, i);
+  return result;
+}
+
 int main()
 {
   // Matrix<int, 2, 3> A{2, 1, -1,
   //                     1, -1, 1};
-  // Matrix<int, 2, 3> B{4, -2, 1,
-  //                     2, -4, -2};
+  Matrix<int, 2, 3> B{4, -2, 1,
+                      2, -4, -2};
   // Matrix<int, 2, 2> C{1, 2,
   //                     2, 1};
   // Matrix<int, 2, 2> D{3, 4,
@@ -169,13 +250,23 @@ int main()
   // std::cout << std::boolalpha << (G * H == G * I) << '\n';
   // std::cout << std::boolalpha << (H != I) << '\n';
 
-  Matrix<int, 3, 3> A{1, 1, 1,
-                      1, 2, 3,
-                      1, 3, 4};
-  Matrix<int, 3, 3> D{2, 0, 0,
-                      0, 3, 0,
-                      0, 0, 4};
-  std::cout << A * D << '\n';
-  std::cout << D * A << '\n';
+  // Matrix<int, 3, 3> A{1, 1, 1,
+  //                     1, 2, 3,
+  //                     1, 3, 4};
+  // Matrix<int, 3, 3> D{2, 0, 0,
+  //                     0, 3, 0,
+  //                     0, 0, 4};
+  // std::cout << B.transpose() << '\n';
+  // std::cout << (A * D).transpose() << '\n';
+  // std::cout << (D.transpose() * A.transpose()) << '\n';
+
+  // Matrix<int, 2, 2> matrix1{1, 1, 1, 0};
+  // Matrix<int, 2, 2> matrix2{5, 3, 3, 2};
+  // std::cout << matrix1 * matrix2 << '\n';
+  // Matrix<int, 3, 3> matrix3{Matrix<int, 3, 3>::identity()};
+  // std::cout << std::boolalpha << matrix3.isOrthogonal() << '\n';
+  Matrix<int, 3, 3> A{3, -7, -2, -3, 5, 1, 6, -4, 0};
+  Matrix<int, 3, 3> B{-7, 5, 2}
+
   return 0;
 }
