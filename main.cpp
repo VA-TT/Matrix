@@ -165,7 +165,60 @@ public:
     return result;
   }
 
-  // Matrix<T, nCols, nRows> inverse() const {}
+  Matrix<T, nCols, nRows> inverse() const
+  {
+    static_assert(nRows == nCols, "Inverse only defined for square matrices.");
+    Matrix<T, nRows, nCols> A(*this);
+    Matrix<T, nRows, nCols> I = Matrix<T, nRows, nCols>::identity();
+
+    for (std::size_t i = 0; i < nRows; ++i)
+    {
+      // Find pivot
+      T pivot = A(i, i);
+      std::size_t pivotRow = i;
+      for (std::size_t row = i + 1; row < nRows; ++row)
+      {
+        if (std::abs(A(row, i)) > std::abs(pivot))
+        {
+          pivot = A(row, i);
+          pivotRow = row;
+        }
+      }
+      if (pivot == 0)
+      {
+        throw std::runtime_error("Matrix is singular and cannot be inverted.");
+      }
+      // Swap rows if needed
+      if (pivotRow != i)
+      {
+        for (std::size_t col = 0; col < nCols; ++col)
+        {
+          std::swap(A(i, col), A(pivotRow, col));
+          std::swap(I(i, col), I(pivotRow, col));
+        }
+      }
+      // Normalize pivot row
+      T invPivot = 1 / A(i, i);
+      for (std::size_t col = 0; col < nCols; ++col)
+      {
+        A(i, col) *= invPivot;
+        I(i, col) *= invPivot;
+      }
+      // Eliminate other rows
+      for (std::size_t row = 0; row < nRows; ++row)
+      {
+        if (row == i)
+          continue;
+        T factor = A(row, i);
+        for (std::size_t col = 0; col < nCols; ++col)
+        {
+          A(row, col) -= factor * A(i, col);
+          I(row, col) -= factor * I(i, col);
+        }
+      }
+    }
+    return I;
+  }
 
   bool isSquare() const
   {
@@ -217,7 +270,7 @@ bool arePairOrthogonal(const Matrix<T, R1, C1> &m1, const Matrix<T, R2, C2> &m2)
 template <typename T, std::size_t nRows, std::size_t nCols>
 T trace(const Matrix<T, nRows, nCols> &m)
 {
-  static_assert(nRows == nCols, "Trace chỉ áp dụng cho ma trận vuông");
+  static_assert(nRows == nCols, "Trace applies only to squared matrix");
   T result{};
   for (std::size_t i = 0; i < nRows; ++i)
     result += m(i, i);
@@ -266,7 +319,5 @@ int main()
   // Matrix<int, 3, 3> matrix3{Matrix<int, 3, 3>::identity()};
   // std::cout << std::boolalpha << matrix3.isOrthogonal() << '\n';
   Matrix<int, 3, 3> A{3, -7, -2, -3, 5, 1, 6, -4, 0};
-  Matrix<int, 3, 3> B{-7, 5, 2}
-
   return 0;
 }
