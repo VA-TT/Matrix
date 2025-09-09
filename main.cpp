@@ -70,6 +70,7 @@ public:
   {
     assert(i < nRows && j < nCols);
     return m_elements[i * nCols + j];
+    // Can nhac sua thanh return m_elements[(i - 1) * nCols + (j - 1)]; de truy cap nhu dai so matrix thong thuong
   }
   const T &operator()(std::size_t i, std::size_t j) const
   {
@@ -168,6 +169,7 @@ public:
   Matrix<T, nCols, nRows> inverse() const
   {
     static_assert(nRows == nCols, "Inverse only defined for square matrices.");
+    // check det
     Matrix<T, nRows, nCols> A(*this);
     Matrix<T, nRows, nCols> I = Matrix<T, nRows, nCols>::identity();
 
@@ -220,6 +222,60 @@ public:
     return I;
   }
 
+  bool isDiagonal() const
+  {
+    for (std::size_t i = 0; i < nRows; ++i)
+    {
+      for (std::size_t j = 0; j < nCols; ++j)
+      {
+        if (i != j)
+        {
+          if ((*this)(i, j) != 0)
+          {
+            return false;
+          }
+        }
+      }
+    }
+    return true;
+  }
+
+  bool isUpperTriangular() const
+  {
+    for (std::size_t i = 0; i < nRows; ++i)
+    {
+      for (std::size_t j = 0; j < nCols; ++j)
+      {
+        if (i > j)
+        {
+          if ((*this)(i, j) != 0)
+          {
+            return false;
+          }
+        }
+      }
+    }
+    return true;
+  }
+
+  bool isLowerTriangular() const
+  {
+    for (std::size_t i = 0; i < nRows; ++i)
+    {
+      for (std::size_t j = 0; j < nCols; ++j)
+      {
+        if (i < j)
+        {
+          if ((*this)(i, j) != 0)
+          {
+            return false;
+          }
+        }
+      }
+    }
+    return true;
+  }
+
   bool isSquare() const
   {
     return nRows == nCols;
@@ -244,6 +300,26 @@ public:
     return false;
   }
 };
+
+// Ax = B
+template <typename T, std::size_t R1, std::size_t C1>
+Matrix<T, R1, 1> solveGaussian(const Matrix<T, R1, C1> &A, const Matrix<T, R1, 1> &B)
+{
+  // assert(R1 == R2 && "Not suitable for solving Ax = B.");
+  Matrix<T, R1, (C1 + 1)> augmentedMatrix{};
+  for (std::size_t i = 0; i < R1; ++i)
+    for (std::size_t j = 0; j < C1; ++j)
+      augmentedMatrix(i, j) = A(i, j);
+  for (std::size_t i = 0; i < R1; ++i)
+    augmentedMatrix(i, C1 + 1) = B(i, 1);
+
+  // Gaussian elimination to solve for x in Ax = B
+  // (This is a placeholder; actual implementation needed)
+  Matrix<T, R1, 1> result{};
+  // TODO: Implement Gaussian elimination to fill 'result' with the solution
+
+  return result;
+}
 
 template <typename T, std::size_t R1, std::size_t C1, std::size_t R2, std::size_t C2>
 Matrix<T, R1, C2> operator*(const Matrix<T, R1, C1> &m1, const Matrix<T, R2, C2> &m2)
