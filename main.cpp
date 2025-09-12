@@ -72,14 +72,15 @@ public:
     return m_elements[i * nCols + j];
     // Can nhac sua thanh return m_elements[(i - 1) * nCols + (j - 1)]; de truy cap nhu dai so matrix thong thuong
   }
+
   const T &operator()(std::size_t i, std::size_t j) const
   {
     assert(i < nRows && j < nCols);
     return m_elements[i * nCols + j];
   }
 
-  constexpr std::size_t cols() const { return nCols; }
-  constexpr std::size_t rows() const { return nRows; }
+  constexpr std::size_t getCols() const { return nCols; }
+  constexpr std::size_t getRows() const { return nRows; }
   constexpr int length() const { return nRows * nCols; }
 
   // outputting matrix
@@ -115,7 +116,7 @@ public:
 
   friend Matrix operator+(const Matrix &m1, const Matrix &m2)
   {
-    assert(m1.cols() == m2.cols() && m1.rows() == m2.rows() && "Unable to perform matrix addition/substraction.");
+    assert(m1.getCols() == m2.getCols() && m1.getRows() == m2.getRows() && "Unable to perform matrix addition/substraction.");
     Matrix<T, nRows, nCols> result{m1};
     for (std::size_t i{0}; i < result.length(); ++i)
       result[i] += m2[i];
@@ -134,7 +135,7 @@ public:
 
   friend bool operator==(const Matrix &m1, const Matrix &m2) // co the vut ra ngoai duoc
   {
-    if (m1.cols() != m2.cols() || m1.rows() != m2.rows())
+    if (m1.getCols() != m2.getCols() || m1.getRows() != m2.getRows())
     {
       return false;
     }
