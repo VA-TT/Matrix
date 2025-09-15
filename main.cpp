@@ -83,6 +83,27 @@ public:
   constexpr std::size_t getRows() const { return nRows; }
   constexpr int length() const { return nRows * nCols; }
 
+  std::array<T *, nCols> pointerRow(std::size_t i)
+  {
+    std::array<T *, nCols> prow{};
+    for (std::size_t j{0}; j < nCols; j++)
+    {
+      prow(i) = this(i)(j);
+    }
+    return prow;
+    // Muon lay reference den mot hang i
+  }
+  std::array<T *, nRows> pointerCol(std::size_t j)
+  {
+    std::array<T *, nRows> prow{};
+    for (std::size_t i{0}; i < nCols; i++)
+    {
+      pcol(j) = this(i)(j);
+    }
+    return prow;
+    // Muon lay reference den mot cot j
+  }
+
   // outputting matrix
   friend std::ostream &operator<<(std::ostream &out, const Matrix &matrix)
   {
@@ -304,23 +325,43 @@ public:
 
 // Ax = B
 template <typename T, std::size_t R1, std::size_t C1>
-Matrix<T, R1, 1> solveGaussian(const Matrix<T, R1, C1> &A, const Matrix<T, R1, 1> &B)
+Matrix<T, R1, 1> gaussianElimination(const Matrix<T, R1, C1> &A, const Matrix<T, R1, 1> &B)
 {
   // assert(R1 == R2 && "Not suitable for solving Ax = B.");
-  Matrix<T, R1, (C1 + 1)> augmentedMatrix{};
+  std::size_t augCols{C1 + 1};
+  Matrix<T, R1, (augCols)> augmentedMatrix{};
   for (std::size_t i = 0; i < R1; ++i)
     for (std::size_t j = 0; j < C1; ++j)
       augmentedMatrix(i, j) = A(i, j);
   for (std::size_t i = 0; i < R1; ++i)
-    augmentedMatrix(i, C1 + 1) = B(i, 1);
+    augmentedMatrix(i, C1) = B(i, 0);
 
+  T coefficient{};
+
+  for (std::size_t i = 0; i < R1 - 1; ++i)
+  {
+    T pivot{augmentedMatrix(i, i)};
+    if (pivot == 0)
+    {
+      std::cout << "Row interchange must first be perfomed.\n"
+    }
+    for (std::size_t k{i + 1}; k < R1; ++k)
+    {
+      coefficient = augmentedMatrix(k, i) / pivot;
+      for (std::size_t j = 0; j < augCols; ++i)
+      {
+        augmentedMatrix(k, j) -= (coefficient * augmentedMatrix(i, j));
+      }
+    }
+  }
   // Gaussian elimination to solve for x in Ax = B
-  // (This is a placeholder; actual implementation needed)
   Matrix<T, R1, 1> result{};
-  // TODO: Implement Gaussian elimination to fill 'result' with the solution
 
   return result;
 }
+// Reduced Row echilon form
+
+// LU Decomposition
 
 template <typename T, std::size_t R1, std::size_t C1, std::size_t R2, std::size_t C2>
 Matrix<T, R1, C2> operator*(const Matrix<T, R1, C1> &m1, const Matrix<T, R2, C2> &m2)
