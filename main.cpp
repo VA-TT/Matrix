@@ -3,7 +3,9 @@
 #include <algorithm>
 #include <cassert>
 #include <initializer_list>
+#include <cmath>
 #include <iomanip>
+#include <functional> // std::reference_wrapper
 
 template <typename T, std::size_t nRows, std::size_t nCols>
 class Matrix
@@ -12,6 +14,7 @@ private:
   std::array<T, nRows * nCols> m_elements{};
 
 public:
+  // Constructors, Destructors
   Matrix(std::initializer_list<T> list)
   {
     assert(list.size() == nRows * nCols);
@@ -24,6 +27,7 @@ public:
   Matrix &operator=(Matrix &&) = default;
   ~Matrix() = default;
 
+  // 0 Matrix, 1 Matrix and Identity Matrix and functions to reset, static to make them create one copy only
   static Matrix zero()
   {
     return Matrix{};
@@ -56,6 +60,7 @@ public:
     (*this) = Matrix::identity();
   }
 
+  // Accesing the elements in the array with one parameter (i)
   T &operator[](std::size_t i)
   {
     assert(i < this->length());
@@ -66,11 +71,13 @@ public:
     assert(i < this->length());
     return m_elements[i];
   }
+
+  // Accesing the elements in the matrices with two parameters (i,j)
   T &operator()(std::size_t i, std::size_t j)
   {
     assert(i < nRows && j < nCols);
     return m_elements[i * nCols + j];
-    // Can nhac sua thanh return m_elements[(i - 1) * nCols + (j - 1)]; de truy cap nhu dai so matrix thong thuong
+    // Consider return m_elements[(i - 1) * nCols + (j - 1)]; in order to accessing the matrices with index starting from 1 in mathematic
   }
 
   const T &operator()(std::size_t i, std::size_t j) const
@@ -79,29 +86,32 @@ public:
     return m_elements[i * nCols + j];
   }
 
+  // Getters to get number of rows & columns + total elements numbers
   constexpr std::size_t getCols() const { return nCols; }
   constexpr std::size_t getRows() const { return nRows; }
   constexpr int length() const { return nRows * nCols; }
 
-  std::array<T *, nCols> pointerRow(std::size_t i)
+  // Reference to a whole row(i) or column(j)
+  std::array<std::reference_wrapper<T>, nCols> referenceRow(std::size_t i)
   {
-    std::array<T *, nCols> prow{};
-    for (std::size_t j{0}; j < nCols; j++)
+    assert(i < nRows);
+    std::array<std::reference_wrapper<T>, nCols> row_refs{};
+    for (std::size_t j{0}; j < nCols; ++j)
     {
-      prow(i) = this(i)(j);
+      row_refs[j] = std::ref((*this)(i, j));
     }
-    return prow;
-    // Muon lay reference den mot hang i
+    return row_refs;
   }
-  std::array<T *, nRows> pointerCol(std::size_t j)
+
+  std::array<std::reference_wrapper<T>, nRows> referenceCol(std::size_t j)
   {
-    std::array<T *, nRows> prow{};
-    for (std::size_t i{0}; i < nCols; i++)
+    assert(j < nCols);
+    std::array<std::reference_wrapper<T>, nRows> col_refs{};
+    for (std::size_t i{0}; i < nRows; ++i)
     {
-      pcol(j) = this(i)(j);
+      col_refs[i] = std::ref((*this)(i, j));
     }
-    return prow;
-    // Muon lay reference den mot cot j
+    return col_refs;
   }
 
   // outputting matrix
@@ -120,7 +130,7 @@ public:
     return out;
   }
 
-  // Matrix algebra
+  // Matrix algebra operators
   friend Matrix operator*(T k, const Matrix &m)
   {
     Matrix<T, nRows, nCols> result{m};
@@ -175,6 +185,64 @@ public:
     return !(m1 == m2);
   }
 
+  // Separate a matrix to two matrices by a column
+  void splitByColumn(std::size_t colPosition, Matrix &A, Matrix &B)
+  {
+    assert(A.getRows() == nRows && B.getRows() == nRows && A.getCols() == colPosition && B.getCols() == (nCols - colPosition) && "sum of 2 matrices's size must match the augmented matrix.\n");
+    for (std::size_t i = 0; i < nRows; ++i)
+      for (std::size_t j = 0; j < nCols; ++j)
+      {
+        if (j < colPosition)
+        {
+          assert(j < A.getCols() && "Error index exceeding matrix's size.\n");
+          A(i, j) = (*this)(i, j);
+        }
+        else
+        {
+          assert(j - colPosition < B.getCols() && "Error index exceeding matrix's size.\n");
+          B(i, j - colPosition) = (*this)(i, j);
+        }
+      }
+  }
+
+  // Swap 2 rows
+  void swapRows(std::size_t i1, std::size_t i2)
+  {
+    for (std::size_t j{0}; j < nCols; ++j)
+    {
+      std::swap((*this)(i1, j), (*this)(i2, j);)
+    }
+  }
+
+  // Find the row with the maximum number of elements that aren't 0
+  std::size_t LeastZeroRow(double tolerance = 5e-4)
+  {
+    std::array<int, nRows> exceed0{};
+    std::size_t index = 0;
+    for (std::size_t i{0}; i < nRows; i++)
+    {
+      for (auto &element : (*this).referenceRow(i))
+      {
+        if (element.get() < tolerance)
+          ++exceed0[i];
+      }
+    }
+    for (std::size_t i{0}; i < nRows; i++)
+    {
+      if (exceed0[i] > exceed0[index])
+      {
+        index = i;
+      }
+    }
+    // Tim index chua gia tri max trong array exceed0
+    return index;
+  }
+
+  // Multiply a const to a row
+
+  // Adding a row multiplied with a const to another row
+
+  // Transpose matrix
   Matrix<T, nCols, nRows> transpose() const
   {
     Matrix<T, nCols, nRows> result{};
@@ -188,6 +256,7 @@ public:
     return result;
   }
 
+  // Inverse Matrix: To be implemented
   Matrix<T, nCols, nRows> inverse() const
   {
     static_assert(nRows == nCols, "Inverse only defined for square matrices.");
@@ -244,6 +313,7 @@ public:
     return I;
   }
 
+  // Bool function to get the characteristics of matrix
   bool isDiagonal() const
   {
     for (std::size_t i = 0; i < nRows; ++i)
@@ -321,9 +391,35 @@ public:
     }
     return false;
   }
+
+  // Resize function?
 };
 
-// Ax = B
+template <typename T, std::size_t R1, std::size_t C1, std::size_t R2, std::size_t C2>
+Matrix<T, R1, (C1 + C2)> augmentedMatrix(const Matrix<T, R1, C1> &A, const Matrix<T, R2, C2> &B)
+{
+  assert(R1 == R2 && "The number of rows of both matrices must match to create an augmented matrix.\n");
+  Matrix<T, R1, (C1 + C2)> augmentedMatrix{};
+  for (std::size_t i = 0; i < R1; ++i)
+    for (std::size_t j = 0; j < (C1 + C2); ++j)
+    {
+      if (j < C1)
+      {
+        assert(j < A.getCols() && "Error index exceeding matrix's size.\n");
+        augmentedMatrix(i, j) = A(i, j);
+      }
+      else
+      {
+        assert((j - C1) < B.getCols() && "Error index exceeding matrix's size.\n");
+        augmentedMatrix(i, j) = B(i, j - C1);
+      }
+    }
+  return augmentedMatrix;
+}
+
+// Separate a matrix to two matrices by a column
+
+// Gaussian elimination to solve Ax = B
 template <typename T, std::size_t R1, std::size_t C1>
 Matrix<T, R1, 1> gaussianElimination(const Matrix<T, R1, C1> &A, const Matrix<T, R1, 1> &B)
 {
@@ -332,9 +428,10 @@ Matrix<T, R1, 1> gaussianElimination(const Matrix<T, R1, C1> &A, const Matrix<T,
   Matrix<T, R1, (augCols)> augmentedMatrix{};
   for (std::size_t i = 0; i < R1; ++i)
     for (std::size_t j = 0; j < C1; ++j)
+    {
       augmentedMatrix(i, j) = A(i, j);
-  for (std::size_t i = 0; i < R1; ++i)
-    augmentedMatrix(i, C1) = B(i, 0);
+      augmentedMatrix(i, C1) = B(i, 0);
+    }
 
   T coefficient{};
 
@@ -343,12 +440,12 @@ Matrix<T, R1, 1> gaussianElimination(const Matrix<T, R1, C1> &A, const Matrix<T,
     T pivot{augmentedMatrix(i, i)};
     if (pivot == 0)
     {
-      std::cout << "Row interchange must first be perfomed.\n"
+      std::cout << "Row interchange must first be perfomed.\n";
     }
     for (std::size_t k{i + 1}; k < R1; ++k)
     {
       coefficient = augmentedMatrix(k, i) / pivot;
-      for (std::size_t j = 0; j < augCols; ++i)
+      for (std::size_t j = 0; j < augCols; ++j)
       {
         augmentedMatrix(k, j) -= (coefficient * augmentedMatrix(i, j));
       }
@@ -356,13 +453,14 @@ Matrix<T, R1, 1> gaussianElimination(const Matrix<T, R1, C1> &A, const Matrix<T,
   }
   // Gaussian elimination to solve for x in Ax = B
   Matrix<T, R1, 1> result{};
-
+  std::cout << augmentedMatrix << '\n';
   return result;
 }
-// Reduced Row echilon form
+// Reduced Row echilon form to calculate matrix inverse (to be implemented)
 
-// LU Decomposition
+// LU Decomposition (to be implemented)
 
+// Matrix multiplication
 template <typename T, std::size_t R1, std::size_t C1, std::size_t R2, std::size_t C2>
 Matrix<T, R1, C2> operator*(const Matrix<T, R1, C1> &m1, const Matrix<T, R2, C2> &m2)
 {
@@ -375,6 +473,7 @@ Matrix<T, R1, C2> operator*(const Matrix<T, R1, C1> &m1, const Matrix<T, R2, C2>
   return result;
 }
 
+// Orthogonal bool function
 template <typename T, std::size_t R1, std::size_t C1, std::size_t R2, std::size_t C2>
 bool arePairOrthogonal(const Matrix<T, R1, C1> &m1, const Matrix<T, R2, C2> &m2)
 {
@@ -385,6 +484,7 @@ bool arePairOrthogonal(const Matrix<T, R1, C1> &m1, const Matrix<T, R2, C2> &m2)
   return false; // Both matrices must not be 0
 }
 
+// Calculate trace(A)
 template <typename T, std::size_t nRows, std::size_t nCols>
 T trace(const Matrix<T, nRows, nCols> &m)
 {
@@ -401,6 +501,11 @@ int main()
   //                     1, -1, 1};
   Matrix<int, 2, 3> B{4, -2, 1,
                       2, -4, -2};
+  auto row_refs = B.referenceRow(1);
+  for (auto &ref : row_refs)
+  {
+    ref.get() = 42; // thay đổi giá trị từng phần tử
+  }
   // Matrix<int, 2, 2> C{1, 2,
   //                     2, 1};
   // Matrix<int, 2, 2> D{3, 4,

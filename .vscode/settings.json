@@ -52,6 +52,7 @@
         "iomanip": "cpp",
         "iostream": "cpp",
         "numbers": "cpp",
-        "__nullptr": "cpp"
+        "__nullptr": "cpp",
+        "__locale": "cpp"
     }
 }
