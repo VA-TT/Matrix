@@ -53,6 +53,7 @@
         "iostream": "cpp",
         "numbers": "cpp",
         "__nullptr": "cpp",
-        "__locale": "cpp"
+        "__locale": "cpp",
+        "span": "cpp"
     }
 }

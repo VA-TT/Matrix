@@ -1,4 +1,6 @@
 #include <array>
+#include <vector>
+#include <span>
 #include <iostream>
 #include <algorithm>
 #include <cassert>
@@ -91,25 +93,33 @@ public:
   constexpr std::size_t getRows() const { return nRows; }
   constexpr int length() const { return nRows * nCols; }
 
-  // Reference to a whole row(i) or column(j)
-  std::array<std::reference_wrapper<T>, nCols> row(std::size_t i)
+  // // Reference to a whole row(i) or column(j) -> Impossible
+  // std::array<std::reference_wrapper<T>, nCols> row(std::size_t i)
+  // {
+  //   assert(i < nRows);
+  //   std::array<std::reference_wrapper<T>, nCols> row_refs{};
+  //   for (std::size_t j = 0; j < nCols; ++j)
+  //   {
+  //     row_refs[j] = std::ref((*this)(i, j));
+  //   }
+  //   return row_refs;
+  // }
+
+  // Reference to row(i)
+  std::span<T> row(std::size_t i)
   {
-    assert(i < nRows);
-    std::array<std::reference_wrapper<T>, nCols> row_refs{};
-    for (std::size_t j{0}; j < nCols; ++j)
-    {
-      row_refs[j] = std::ref((*this)(i, j));
-    }
-    return row_refs;
+    return std::span<T>(&m_elements[i * nCols], nCols);
   }
 
-  std::array<std::reference_wrapper<T>, nRows> col(std::size_t j)
+  // Reference to col(j): couldn't use std::span (data is not continuous in m_element) and std::array here (as with array reference_wrapper default constructor will fail)
+  std::vector<std::reference_wrapper<T>> col(std::size_t j)
   {
     assert(j < nCols);
-    std::array<std::reference_wrapper<T>, nRows> col_refs{};
-    for (std::size_t i{0}; i < nRows; ++i)
+    std::vector<std::reference_wrapper<T>> col_refs;
+    col_refs.reserve(nRows);
+    for (std::size_t i = 0; i < nRows; ++i)
     {
-      col_refs[i] = std::ref((*this)(i, j));
+      col_refs.push_back(std::ref((*this)(i, j)));
     }
     return col_refs;
   }
@@ -205,29 +215,52 @@ public:
       }
   }
 
+  // // Pointer to a whole row(i) or column(j)
+  // std::array<T *, nCols> rowPointer(std::size_t i)
+  // {
+  //   assert(i < nRows);
+  //   std::array<T *, nCols> row_pointer{};
+  //   for (std::size_t j = 0; j < nCols; ++j)
+  //   {
+  //     row_pointer[j] = &(*this)(i, j);
+  //   }
+  //   return row_pointer;
+  // }
+
+  // std::array<T *, nRows> colPointer(std::size_t j)
+  // {
+  //   assert(j < nCols);
+  //   std::array<T *, nRows> col_pointer{};
+  //   for (std::size_t i = 0; i < nRows; ++i)
+  //   {
+  //     col_pointer[i] = &(*this)(i, j);
+  //   }
+  //   return col_pointer;
+  // }
+
   // Swap 2 rows
   void swapRows(std::size_t i1, std::size_t i2)
   {
     for (std::size_t j{0}; j < nCols; ++j)
     {
-      std::swap((*this)(i1, j), (*this)(i2, j))
+      std::swap((*this)(i1, j), (*this)(i2, j));
     }
   }
 
-  // Find the row with the maximum number of elements that aren't 0
-  std::size_t LeastZeroRow(double tolerance = 5e-4)
+  // Find the row with the highest number of elements that aren't 0
+  std::size_t MostZeroRow(double tolerance = 5e-4)
   {
     std::array<int, nRows> exceed0{};
-    std::size_t index = 0;
+    std::size_t index{0};
     for (std::size_t i{0}; i < nRows; i++)
     {
       for (auto &element : (*this).row(i))
       {
-        if (element.get() < tolerance)
+        if (element < tolerance)
           ++exceed0[i];
       }
     }
-    for (std::size_t i{0}; i < nRows; i++)
+    for (std::size_t i{1}; i < nRows; i++)
     {
       if (exceed0[i] > exceed0[index])
       {
@@ -236,15 +269,6 @@ public:
     }
     // Tim index chua gia tri max trong array exceed0
     return index;
-  }
-
-  // Multiply a scalar to a row
-  friend void operator*=(std::array<std::reference_wrapper<T>, nCols> &row, const T &k)
-  {
-    for (auto &element : row)
-    {
-      element.get() *= k;
-    }
   }
 
   // Adding a row multiplied with a const to another row
@@ -402,6 +426,16 @@ public:
   // Resize function?
 };
 
+// Multiply a scalar to a row
+template <typename T, std::size_t nCols>
+void operator*(std::array<T *, nCols> &row, const T &k)
+{
+  for (auto &element : row)
+  {
+    (*element) *= k;
+  }
+}
+
 template <typename T, std::size_t R1, std::size_t C1, std::size_t R2, std::size_t C2>
 Matrix<T, R1, (C1 + C2)> augmentedMatrix(const Matrix<T, R1, C1> &A, const Matrix<T, R2, C2> &B)
 {
@@ -424,14 +458,12 @@ Matrix<T, R1, (C1 + C2)> augmentedMatrix(const Matrix<T, R1, C1> &A, const Matri
   return augmentedMatrix;
 }
 
-// Separate a matrix to two matrices by a column
-
 // Gaussian elimination to solve Ax = B
 template <typename T, std::size_t R1, std::size_t C1>
 Matrix<T, R1, 1> gaussianElimination(const Matrix<T, R1, C1> &A, const Matrix<T, R1, 1> &B)
 {
   // assert(R1 == R2 && "Not suitable for solving Ax = B.");
-  std::size_t augCols{C1 + 1};
+  constexpr std::size_t augCols{C1 + 1};
   Matrix<T, R1, (augCols)> augmentedMatrix{};
   for (std::size_t i = 0; i < R1; ++i)
     for (std::size_t j = 0; j < C1; ++j)
@@ -511,7 +543,12 @@ int main()
   auto row_refs = B.row(1);
   for (auto &ref : row_refs)
   {
-    ref.get() = 42; // thay đổi giá trị từng phần tử
+    ref = 42; // thay đổi giá trị từng phần tử
+  }
+  auto col_refs = B.col(2);
+  for (auto &ref : col_refs)
+  {
+    ref.get() = 99; // thay đổi giá trị từng phần tử của cột 2
   }
   // Matrix<int, 2, 2> C{1, 2,
   //                     2, 1};
