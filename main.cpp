@@ -92,7 +92,7 @@ public:
   constexpr int length() const { return nRows * nCols; }
 
   // Reference to a whole row(i) or column(j)
-  std::array<std::reference_wrapper<T>, nCols> referenceRow(std::size_t i)
+  std::array<std::reference_wrapper<T>, nCols> row(std::size_t i)
   {
     assert(i < nRows);
     std::array<std::reference_wrapper<T>, nCols> row_refs{};
@@ -103,7 +103,7 @@ public:
     return row_refs;
   }
 
-  std::array<std::reference_wrapper<T>, nRows> referenceCol(std::size_t j)
+  std::array<std::reference_wrapper<T>, nRows> col(std::size_t j)
   {
     assert(j < nCols);
     std::array<std::reference_wrapper<T>, nRows> col_refs{};
@@ -210,7 +210,7 @@ public:
   {
     for (std::size_t j{0}; j < nCols; ++j)
     {
-      std::swap((*this)(i1, j), (*this)(i2, j);)
+      std::swap((*this)(i1, j), (*this)(i2, j))
     }
   }
 
@@ -221,7 +221,7 @@ public:
     std::size_t index = 0;
     for (std::size_t i{0}; i < nRows; i++)
     {
-      for (auto &element : (*this).referenceRow(i))
+      for (auto &element : (*this).row(i))
       {
         if (element.get() < tolerance)
           ++exceed0[i];
@@ -238,7 +238,14 @@ public:
     return index;
   }
 
-  // Multiply a const to a row
+  // Multiply a scalar to a row
+  friend void operator*=(std::array<std::reference_wrapper<T>, nCols> &row, const T &k)
+  {
+    for (auto &element : row)
+    {
+      element.get() *= k;
+    }
+  }
 
   // Adding a row multiplied with a const to another row
 
@@ -257,61 +264,61 @@ public:
   }
 
   // Inverse Matrix: To be implemented
-  Matrix<T, nCols, nRows> inverse() const
-  {
-    static_assert(nRows == nCols, "Inverse only defined for square matrices.");
-    // check det
-    Matrix<T, nRows, nCols> A(*this);
-    Matrix<T, nRows, nCols> I = Matrix<T, nRows, nCols>::identity();
+  // Matrix<T, nCols, nRows> inverse() const
+  // {
+  //   static_assert(nRows == nCols, "Inverse only defined for square matrices.");
+  //   // check det
+  //   Matrix<T, nRows, nCols> A(*this);
+  //   Matrix<T, nRows, nCols> I = Matrix<T, nRows, nCols>::identity();
 
-    for (std::size_t i = 0; i < nRows; ++i)
-    {
-      // Find pivot
-      T pivot = A(i, i);
-      std::size_t pivotRow = i;
-      for (std::size_t row = i + 1; row < nRows; ++row)
-      {
-        if (std::abs(A(row, i)) > std::abs(pivot))
-        {
-          pivot = A(row, i);
-          pivotRow = row;
-        }
-      }
-      if (pivot == 0)
-      {
-        throw std::runtime_error("Matrix is singular and cannot be inverted.");
-      }
-      // Swap rows if needed
-      if (pivotRow != i)
-      {
-        for (std::size_t col = 0; col < nCols; ++col)
-        {
-          std::swap(A(i, col), A(pivotRow, col));
-          std::swap(I(i, col), I(pivotRow, col));
-        }
-      }
-      // Normalize pivot row
-      T invPivot = 1 / A(i, i);
-      for (std::size_t col = 0; col < nCols; ++col)
-      {
-        A(i, col) *= invPivot;
-        I(i, col) *= invPivot;
-      }
-      // Eliminate other rows
-      for (std::size_t row = 0; row < nRows; ++row)
-      {
-        if (row == i)
-          continue;
-        T factor = A(row, i);
-        for (std::size_t col = 0; col < nCols; ++col)
-        {
-          A(row, col) -= factor * A(i, col);
-          I(row, col) -= factor * I(i, col);
-        }
-      }
-    }
-    return I;
-  }
+  //   for (std::size_t i = 0; i < nRows; ++i)
+  //   {
+  //     // Find pivot
+  //     T pivot = A(i, i);
+  //     std::size_t pivotRow = i;
+  //     for (std::size_t row = i + 1; row < nRows; ++row)
+  //     {
+  //       if (std::abs(A(row, i)) > std::abs(pivot))
+  //       {
+  //         pivot = A(row, i);
+  //         pivotRow = row;
+  //       }
+  //     }
+  //     if (pivot == 0)
+  //     {
+  //       throw std::runtime_error("Matrix is singular and cannot be inverted.");
+  //     }
+  //     // Swap rows if needed
+  //     if (pivotRow != i)
+  //     {
+  //       for (std::size_t col = 0; col < nCols; ++col)
+  //       {
+  //         std::swap(A(i, col), A(pivotRow, col));
+  //         std::swap(I(i, col), I(pivotRow, col));
+  //       }
+  //     }
+  //     // Normalize pivot row
+  //     T invPivot = 1 / A(i, i);
+  //     for (std::size_t col = 0; col < nCols; ++col)
+  //     {
+  //       A(i, col) *= invPivot;
+  //       I(i, col) *= invPivot;
+  //     }
+  //     // Eliminate other rows
+  //     for (std::size_t row = 0; row < nRows; ++row)
+  //     {
+  //       if (row == i)
+  //         continue;
+  //       T factor = A(row, i);
+  //       for (std::size_t col = 0; col < nCols; ++col)
+  //       {
+  //         A(row, col) -= factor * A(i, col);
+  //         I(row, col) -= factor * I(i, col);
+  //       }
+  //     }
+  //   }
+  //   return I;
+  // }
 
   // Bool function to get the characteristics of matrix
   bool isDiagonal() const
@@ -501,7 +508,7 @@ int main()
   //                     1, -1, 1};
   Matrix<int, 2, 3> B{4, -2, 1,
                       2, -4, -2};
-  auto row_refs = B.referenceRow(1);
+  auto row_refs = B.row(1);
   for (auto &ref : row_refs)
   {
     ref.get() = 42; // thay đổi giá trị từng phần tử
