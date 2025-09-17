@@ -536,55 +536,50 @@ T trace(const Matrix<T, nRows, nCols> &m)
 
 int main()
 {
-  // Matrix<int, 2, 3> A{2, 1, -1,
-  //                     1, -1, 1};
   Matrix<int, 2, 3> B{4, -2, 1,
                       2, -4, -2};
+
+  // Test: Thay đổi giá trị từng phần tử của hàng 1
   auto row_refs = B.row(1);
   for (auto &ref : row_refs)
   {
-    ref = 42; // thay đổi giá trị từng phần tử
+    ref = 42;
   }
+  std::cout << "Sau khi thay đổi hàng 1:\n"
+            << B << std::endl;
+
+  // Test: Thay đổi giá trị từng phần tử của cột 2
   auto col_refs = B.col(2);
   for (auto &ref : col_refs)
   {
-    ref.get() = 99; // thay đổi giá trị từng phần tử của cột 2
+    ref.get() = 99;
   }
-  // Matrix<int, 2, 2> C{1, 2,
-  //                     2, 1};
-  // Matrix<int, 2, 2> D{3, 4,
-  //                     4, 3};
-  // Matrix<int, 1, 2> E{1, 2};
-  // Matrix<int, 2, 2> G{1, 2,
-  //                     2, 4};
-  // Matrix<int, 2, 2> H{2, 1,
-  //                     1, 3};
-  // Matrix<int, 2, 2> I{4, 3,
-  //                     0, 2};
+  std::cout << "Sau khi thay đổi cột 2:\n"
+            << B << std::endl;
 
-  // std::cout << B - 2 * A << '\n';
-  // std::cout << C + E << '\n';
-  // // std::cout << A * C << '\n';
-  // std::cout << C * D << '\n';
-  // std::cout << C * B << '\n';
-  // std::cout << std::boolalpha << (G * H == G * I) << '\n';
-  // std::cout << std::boolalpha << (H != I) << '\n';
+  // Test: Cộng, trừ, nhân ma trận
+  Matrix<int, 2, 3> A{1, 2, 3,
+                      4, 5, 6};
+  std::cout << "A + B:\n"
+            << A + B << std::endl;
+  std::cout << "A - B:\n"
+            << A - B << std::endl;
+  std::cout << "2 * A:\n"
+            << 2 * A << std::endl;
 
-  // Matrix<int, 3, 3> A{1, 1, 1,
-  //                     1, 2, 3,
-  //                     1, 3, 4};
-  // Matrix<int, 3, 3> D{2, 0, 0,
-  //                     0, 3, 0,
-  //                     0, 0, 4};
-  // std::cout << B.transpose() << '\n';
-  // std::cout << (A * D).transpose() << '\n';
-  // std::cout << (D.transpose() * A.transpose()) << '\n';
+  // Test: Ma trận chuyển vị
+  std::cout << "A chuyển vị:\n"
+            << A.transpose() << std::endl;
 
-  // Matrix<int, 2, 2> matrix1{1, 1, 1, 0};
-  // Matrix<int, 2, 2> matrix2{5, 3, 3, 2};
-  // std::cout << matrix1 * matrix2 << '\n';
-  // Matrix<int, 3, 3> matrix3{Matrix<int, 3, 3>::identity()};
-  // std::cout << std::boolalpha << matrix3.isOrthogonal() << '\n';
-  Matrix<int, 3, 3> A{3, -7, -2, -3, 5, 1, 6, -4, 0};
+  // Test: So sánh ma trận
+  std::cout << std::boolalpha << "A == B? " << (A == B) << std::endl;
+  std::cout << std::boolalpha << "A != B? " << (A != B) << std::endl;
+
+  // Test: Trace cho ma trận vuông
+  Matrix<int, 3, 3> C{1, 2, 3,
+                      4, 5, 6,
+                      7, 8, 9};
+  std::cout << "Trace(C): " << trace(C) << std::endl;
+
   return 0;
 }
