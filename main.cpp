@@ -314,6 +314,10 @@ public:
   }
 
   // Inverse Matrix: To be implemented
+  Matrix<T, nCols, nRows> inverse() const
+  {
+    static_assert(nRows == nCols, "Inverse only defined for square matrices.");
+  }
   // Matrix<T, nCols, nRows> inverse() const
   // {
   //   static_assert(nRows == nCols, "Inverse only defined for square matrices.");
