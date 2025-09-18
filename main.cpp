@@ -63,7 +63,7 @@ public:
     (*this) = Matrix::identity();
   }
 
-  // Accesing the elements in the array with one parameter (i)
+  // Accessing the elements in the array with one parameter (i)
   T &operator[](std::size_t i)
   {
     assert(i < this->length());
@@ -75,7 +75,7 @@ public:
     return m_elements[i];
   }
 
-  // Accesing the elements in the matrices with two parameters (i,j)
+  // Accessing the elements in the matrices with two parameters (i,j)
   T &operator()(std::size_t i, std::size_t j)
   {
     assert(i < nRows && j < nCols);
