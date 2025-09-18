@@ -93,21 +93,29 @@ public:
   constexpr std::size_t getRows() const { return nRows; }
   constexpr int length() const { return nRows * nCols; }
 
-  // // Reference to a whole row(i) or column(j) -> Impossible
-  // std::array<std::reference_wrapper<T>, nCols> row(std::size_t i)
-  // {
-  //   assert(i < nRows);
-  //   std::array<std::reference_wrapper<T>, nCols> row_refs{};
-  //   for (std::size_t j = 0; j < nCols; ++j)
-  //   {
-  //     row_refs[j] = std::ref((*this)(i, j));
-  //   }
-  //   return row_refs;
-  // }
+  // Const Reference to a whole row(i) or column(j)
+  std::array<T, nCols> row(std::size_t i) const
+  {
+    assert(i < nRows);
+    std::array<T, nCols> row_i{};
+    for (std::size_t j{0}; j < nCols; ++j)
+      row_i[j] = (*this)(i, j);
+    return row_i;
+  }
+
+  std::array<T, nRows> col(std::size_t j) const
+  {
+    assert(j < nCols);
+    std::array<T, nRows> col_j{};
+    for (std::size_t i{0}; i < nRows; ++i)
+      col_j[i] = (*this)(i, j);
+    return col_j;
+  }
 
   // Reference to row(i)
   std::span<T> row(std::size_t i)
   {
+    assert(i < nRows);
     return std::span<T>(&m_elements[i * nCols], nCols);
   }
 
@@ -271,8 +279,6 @@ public:
     return index;
   }
 
-  // Adding a row multiplied with a const to another row
-
   // Transpose matrix
   Matrix<T, nCols, nRows> transpose() const
   {
@@ -428,12 +434,44 @@ public:
 
 // Multiply a scalar to a row
 template <typename T, std::size_t nCols>
-void operator*(std::array<T *, nCols> &row, const T &k)
+std::array<T, nCols> operator*(const T &k, const std::array<T, nCols> &row)
 {
+  std::array<T, nCols> result;
   for (auto &element : row)
+    result = element * k;
+  return row;
+}
+
+template <typename T, std::size_t nCols>
+std::array<T, nCols> operator*(const std::array<T, nCols> &row, const T &k)
+{
+  return k * row;
+}
+// // Change the value of row directly
+// template <typename T>
+// std::span<T> operator*(std::span<T> row, const T &k)
+// {
+//   for (auto &element : row)
+//     element *= k;
+//   return row;
+// }
+
+// template <typename T>
+// std::span<T> operator*(const T &k, std::span<T> row)
+// {
+//   return row * k;
+// }
+
+// Adding a row multiplied with a const to another row
+template <typename T, std::size_t nCols>
+const std::array<T, nCols> operator+(const std::array<T, nCols> &row1, const std::array<T, nCols> &row2)
+{
+  const std::array<T, nCols> result{};
+  for (std::size_t j{0}; j < nCols; j++)
   {
-    (*element) *= k;
+    result[j] = row1[j] + row2[j];
   }
+  return result;
 }
 
 template <typename T, std::size_t R1, std::size_t C1, std::size_t R2, std::size_t C2>
