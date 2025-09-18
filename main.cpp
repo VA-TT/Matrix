@@ -264,7 +264,7 @@ public:
     {
       for (const auto &element : (*this).row(i))
       {
-        if (element < tolerance)
+        if (std::abs(element) < tolerance)
           ++exceed0[i];
       }
     }
@@ -289,7 +289,7 @@ public:
     {
       if (col_j[i] > element_max)
       {
-        element_max = element;
+        element_max = col_j[i];
         index = i;
       }
     }
@@ -456,10 +456,10 @@ public:
 template <typename T, std::size_t nCols>
 std::array<T, nCols> operator*(const T &k, const std::array<T, nCols> &row)
 {
-  std::array<T, nCols> result;
-  for (const auto &element : row)
-    result = element * k;
-  return row;
+  std::array<T, nCols> result{};
+  for (std::size_t i = 0; i < nCols; ++i)
+    result[i] = row[i] * k;
+  return result;
 }
 
 template <typename T, std::size_t nCols>
@@ -486,7 +486,7 @@ std::array<T, nCols> operator*(const std::array<T, nCols> &row, const T &k)
 template <typename T, std::size_t nCols>
 const std::array<T, nCols> operator+(const std::array<T, nCols> &row1, const std::array<T, nCols> &row2)
 {
-  const std::array<T, nCols> result{};
+  std::array<T, nCols> result{};
   for (std::size_t j{0}; j < nCols; j++)
   {
     result[j] = row1[j] + row2[j];
