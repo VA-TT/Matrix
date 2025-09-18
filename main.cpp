@@ -4,6 +4,7 @@
 #include <iostream>
 #include <algorithm>
 #include <cassert>
+#include <stdexcept>
 #include <initializer_list>
 #include <cmath>
 #include <iomanip>
@@ -54,7 +55,7 @@ public:
   {
     Matrix result{};
     for (std::size_t i = 0; i < std::min(nRows, nCols); ++i)
-      result(i, i) = 1;
+      result(i, i) = 1.0;
     return result;
   }
   void resetIdentity()
@@ -184,13 +185,14 @@ public:
 
   friend bool operator==(const Matrix &m1, const Matrix &m2) // co the vut ra ngoai duoc
   {
+    double tolerance = 5e-4; // Should make it relatively
     if (m1.getCols() != m2.getCols() || m1.getRows() != m2.getRows())
     {
       return false;
     }
     for (std::size_t i{0}; i < m1.length(); i++)
     {
-      if (m1[i] != m2[i])
+      if (std::abs(m1[i] - m2[i]) > tolerance)
       {
         return false;
       }
@@ -495,25 +497,25 @@ const std::array<T, nCols> operator+(const std::array<T, nCols> &row1, const std
 }
 
 template <typename T, std::size_t R1, std::size_t C1, std::size_t R2, std::size_t C2>
-Matrix<T, R1, (C1 + C2)> augmentedMatrix(const Matrix<T, R1, C1> &A, const Matrix<T, R2, C2> &B)
+Matrix<T, R1, (C1 + C2)> concatenatedMatrix(const Matrix<T, R1, C1> &A, const Matrix<T, R2, C2> &B)
 {
-  assert(R1 == R2 && "The number of rows of both matrices must match to create an augmented matrix.\n");
-  Matrix<T, R1, (C1 + C2)> augmentedMatrix{};
+  assert(R1 == R2 && "The number of rows of both matrices must match to create an concatenated matrix.\n");
+  Matrix<T, R1, (C1 + C2)> concatenatedMatrix{};
   for (std::size_t i = 0; i < R1; ++i)
     for (std::size_t j = 0; j < (C1 + C2); ++j)
     {
       if (j < C1)
       {
         assert(j < A.getCols() && "Error index exceeding matrix's size.\n");
-        augmentedMatrix(i, j) = A(i, j);
+        concatenatedMatrix(i, j) = A(i, j);
       }
       else
       {
         assert((j - C1) < B.getCols() && "Error index exceeding matrix's size.\n");
-        augmentedMatrix(i, j) = B(i, j - C1);
+        concatenatedMatrix(i, j) = B(i, j - C1);
       }
     }
-  return augmentedMatrix;
+  return concatenatedMatrix;
 }
 
 // Gaussian elimination to solve Ax = B
@@ -522,14 +524,7 @@ Matrix<T, R1, 1> gaussianElimination(const Matrix<T, R1, C1> &A, const Matrix<T,
 {
   // assert(R1 == R2 && "Not suitable for solving Ax = B.");
   constexpr std::size_t augCols{C1 + 1};
-  Matrix<T, R1, (augCols)> augmentedMatrix{};
-  for (std::size_t i = 0; i < R1; ++i)
-    for (std::size_t j = 0; j < C1; ++j)
-    {
-      augmentedMatrix(i, j) = A(i, j);
-      augmentedMatrix(i, C1) = B(i, 0);
-    }
-
+  Matrix<T, R1, (augCols)> augmentedMatrix{concatenatedMatrix(A, B)};
   T coefficient{};
 
   for (std::size_t i = 0; i < R1 - 1; ++i)
