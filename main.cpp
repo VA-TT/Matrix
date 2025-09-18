@@ -256,13 +256,13 @@ public:
   }
 
   // Find the row with the highest number of elements that aren't 0
-  std::size_t MostZeroRow(double tolerance = 5e-4)
+  int MostZeroRow(double tolerance = 5e-4)
   {
     std::array<int, nRows> exceed0{};
     std::size_t index{0};
     for (std::size_t i{0}; i < nRows; i++)
     {
-      for (auto &element : (*this).row(i))
+      for (const auto &element : (*this).row(i))
       {
         if (element < tolerance)
           ++exceed0[i];
@@ -276,7 +276,25 @@ public:
       }
     }
     // Tim index chua gia tri max trong array exceed0
-    return index;
+    return static_cast<int>(index);
+  }
+
+  // Find the row with the max element at a given column
+  int indexRowMax(std::size_t j)
+  {
+    std::array<T, nRows> col_j = (*this).col(j);
+    T element_max{};
+    std::size_t index{0};
+    for (std::size_t i{0}; i < nRows; i++)
+    {
+      if (col_j[i] > element_max)
+      {
+        element_max = element;
+        index = i;
+      }
+    }
+    // Tim index chua gia tri max trong array exceed0
+    return static_cast<int>(index);
   }
 
   // Transpose matrix
@@ -432,12 +450,14 @@ public:
   // Resize function?
 };
 
+//////////////////////////////////   END OF MATRIX CLASS   //////////////////////////////////
+
 // Multiply a scalar to a row
 template <typename T, std::size_t nCols>
 std::array<T, nCols> operator*(const T &k, const std::array<T, nCols> &row)
 {
   std::array<T, nCols> result;
-  for (auto &element : row)
+  for (const auto &element : row)
     result = element * k;
   return row;
 }
@@ -572,6 +592,7 @@ T trace(const Matrix<T, nRows, nCols> &m)
   return result;
 }
 
+//////////////////////////////////   MAIN   //////////////////////////////////
 int main()
 {
   Matrix<int, 2, 3> B{4, -2, 1,
