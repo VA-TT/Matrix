@@ -10,6 +10,7 @@
 #include <iomanip>
 #include <functional> // std::reference_wrapper
 #include "comparison.hpp"
+#include <type_traits> // thêm dòng này
 
 template <typename T, std::size_t nRows, std::size_t nCols>
 class Matrix
@@ -95,25 +96,6 @@ public:
   constexpr std::size_t getRows() const { return nRows; }
   constexpr int length() const { return nRows * nCols; }
 
-  // Const Reference to a whole row(i) or column(j)
-  // std::array<T, nCols> row(std::size_t i) const
-  // {
-  //   assert(i < nRows);
-  //   std::array<T, nCols> row_i{};
-  //   for (std::size_t j{0}; j < nCols; ++j)
-  //     row_i[j] = (*this)(i, j);
-  //   return row_i;
-  // }
-
-  // std::array<T, nRows> col(std::size_t j) const
-  // {
-  //   assert(j < nCols);
-  //   std::array<T, nRows> col_j{};
-  //   for (std::size_t i{0}; i < nRows; ++i)
-  //     col_j[i] = (*this)(i, j);
-  //   return col_j;
-  // }
-
   // Reference to row(i)
   std::span<T> row(std::size_t i)
   {
@@ -137,7 +119,15 @@ public:
   // outputting matrix
   friend std::ostream &operator<<(std::ostream &out, const Matrix &matrix)
   {
-    constexpr int tab = 6;
+    std::ios oldState(nullptr);
+    oldState.copyfmt(out); // save stream state
+
+    if constexpr (std::is_floating_point_v<T>)
+    {
+      out << std::fixed << std::setprecision(3);
+    }
+
+    constexpr int tab = 10;
     for (std::size_t i = 0; i < nRows; ++i)
     {
       out << "|";
@@ -147,6 +137,8 @@ public:
       }
       out << " |" << '\n';
     }
+
+    out.copyfmt(oldState);
     return out;
   }
 
@@ -191,14 +183,6 @@ public:
     {
       return false;
     }
-    // for (std::size_t i{0}; i < m1.length(); i++)
-    // {
-    //   if (std::abs(m1[i] - m2[i]) > tolerance)
-    //   {
-    //     return false;
-    //   }
-    // }
-    // return true;
     for (std::size_t i{0}; i < m1.length(); i++)
     {
       if (!approximatelyEqualAbsRel(m1[i], m2[i]))
@@ -265,30 +249,6 @@ public:
     }
   }
 
-  // Find the row with the highest number of elements that aren't 0
-  int MostZeroRow(double tolerance = 5e-4)
-  {
-    std::array<int, nRows> exceed0{};
-    std::size_t index{0};
-    for (std::size_t i{0}; i < nRows; i++)
-    {
-      for (const auto &element : (*this).row(i))
-      {
-        if (std::abs(element) < tolerance)
-          ++exceed0[i];
-      }
-    }
-    for (std::size_t i{1}; i < nRows; i++)
-    {
-      if (exceed0[i] > exceed0[index])
-      {
-        index = i;
-      }
-    }
-    // Tim index chua gia tri max trong array exceed0
-    return static_cast<int>(index);
-  }
-
   // Find the row with the max element at a given column (Noted below pivot)
   std::size_t indexRowMax(std::size_t col, std::size_t startRow = 0) const
   {
@@ -326,46 +286,54 @@ public:
   {
     if (!isSquare())
       throw std::invalid_argument("Inverse only defined for square matrices.");
-    // static_assert(nRows == nCols, "Inverse only defined for square matrices.");
-    // int maxCount{100};
-    // int count{0};
-    // bool computeFlag = false;
     Matrix<T, nRows, nCols> inverseMatrix{};
     Matrix<T, nRows, nCols> testIdentity{};
     Matrix<T, nRows, (nCols + nCols)> augmentedMatrix{concatenatedMatrix(*this, Matrix<T, nRows, nCols>::identity())};
-    // while (count < maxCount && !computeFlag)
+
     for (std::size_t pivotIndex{0}; pivotIndex < nRows; ++pivotIndex)
     {
-      std::cout << "Pivot index " << pivotIndex << std::endl;
+      // std::cout << "Pivot index " << pivotIndex << std::endl;
       std::size_t maxIndex{augmentedMatrix.indexRowMax(pivotIndex, pivotIndex)};
       if (maxIndex != pivotIndex)
       {
-
         augmentedMatrix.swapRows(pivotIndex, maxIndex);
-        std::cout << "Swap rows " << pivotIndex << " and " << maxIndex << std::endl;
-        std::cout << augmentedMatrix << std::endl;
+        // std::cout << "Swap rows " << pivotIndex << " and " << maxIndex << std::endl;
+        // std::cout << augmentedMatrix << std::endl;
       }
       T pivot{augmentedMatrix(pivotIndex, pivotIndex)};
-      if (approximatelyEqualAbsRel(pivot, 0.0)) // approximate to 0
+      if (approximatelyEqualAbsRel(pivot, 0.0))
       {
         throw std::runtime_error("Matrix is singular and cannot be inverted.");
       }
+      auto pivotSpan = augmentedMatrix.row(pivotIndex);
+      // Normalize pivot in place
       if (!approximatelyEqualAbsRel(pivot, 1.0))
       {
-        augmentedMatrix.row(pivotIndex) = augmentedMatrix.row(pivotIndex) / pivot; // normalize pivot
+        for (auto &val : pivotSpan)
+          val /= pivot;
+        // std::cout << "Normalize row " << pivotIndex << " by pivot = " << pivot << "\n"
+        //           << augmentedMatrix << '\n';
       }
+
+      // Eliminate other rows
       for (std::size_t i{0}; i < nRows; ++i)
       {
+        // Skip the pivot row
         if (i == pivotIndex)
           continue;
-        // If the element is already 0.0, move on
-        if (!approximatelyEqualAbsRel(augmentedMatrix(i, pivotIndex), 0.0))
+
+        T factor = augmentedMatrix(i, pivotIndex); // no need to /pivot as pivot = 1.0 already
+        if (approximatelyEqualAbsRel(factor, 0.0)) // Skip value under or above the pilot that are 0.0
+          continue;
+
+        // std::cout << "Eliminate row " << i << " using pivot row " << pivotIndex
+        //           << " (factor = " << factor << ")\n";
+        auto targetSpan = augmentedMatrix.row(i);
+        for (std::size_t j = 0; j < pivotSpan.size(); ++j)
         {
-          T factor = -augmentedMatrix(i, pivotIndex); // /pivot = /1.0
-          augmentedMatrix.row(i) = augmentedMatrix.row(i) + factor * augmentedMatrix.row(pivotIndex);
-          std::cout << "Multiply row " << pivotIndex << " by " << factor << " and add it to row " << i << std::endl;
-          std::cout << augmentedMatrix << std::endl;
+          targetSpan[j] -= factor * pivotSpan[j];
         }
+        // std::cout << augmentedMatrix << '\n';
       }
     }
     augmentedMatrix.splitByColumn(nCols, testIdentity, inverseMatrix);
@@ -459,103 +427,6 @@ public:
 
 //////////////////////////////////   END OF MATRIX CLASS   //////////////////////////////////
 
-// Multiply a scalar to a row
-// template <typename T, std::size_t nCols>
-// std::array<T, nCols> operator*(const T &k, const std::array<T, nCols> &row)
-// {
-//   std::array<T, nCols> result{};
-//   for (std::size_t i = 0; i < nCols; ++i)
-//     result[i] = row[i] * k;
-//   return result;
-// }
-
-// template <typename T, std::size_t nCols>
-// std::array<T, nCols> operator*(const std::array<T, nCols> &row, const T &k)
-// {
-//   return k * row;
-// }
-
-// template <typename T, std::size_t nCols>
-// std::array<T, nCols> operator/(const std::array<T, nCols> &row, const T &k)
-// {
-//   std::array<T, nCols> result{};
-//   for (std::size_t i = 0; i < nCols; ++i)
-//     result[i] = row[i] / k;
-//   return result;
-// }
-
-// template <typename T, std::size_t nCols>
-// std::array<T, nCols> operator/(const T &k, const std::array<T, nCols> &row)
-// {
-//   std::array<T, nCols> result{};
-//   for (std::size_t i = 0; i < nCols; ++i)
-//     result[i] = k / row[i];
-//   return result;
-// }
-// Change the value of row directly
-template <typename T>
-std::span<T> operator*(std::span<T> row, const T &k)
-{
-  for (auto &element : row)
-    element *= k;
-  return row;
-}
-
-template <typename T>
-std::span<T> operator*(const T &k, std::span<T> row)
-{
-
-  return row * k;
-}
-
-template <typename T>
-std::span<T> operator/(std::span<T> row, const T &k)
-{
-  for (auto &element : row)
-    element /= k;
-  return row;
-}
-
-template <typename T>
-std::span<T> operator/(const T &k, std::span<T> row)
-{
-  for (auto &element : row)
-    element = k / element;
-  return row;
-}
-
-template <typename T, std::size_t nCols>
-std::span<T> operator+(std::span<T> row1, std::span<T> row2)
-{
-  for (std::size_t j{0}; j < nCols; j++)
-  {
-    row1[j] += row2[j];
-  }
-  return row1;
-}
-
-template <typename T, std::size_t nCols>
-std::span<T> operator-(std::span<T> row1, std::span<T> row2)
-{
-  for (std::size_t j{0}; j < nCols; j++)
-  {
-    row1[j] -= row2[j];
-  }
-  return row1;
-}
-
-// Adding a row multiplied with a const to another row
-// template <typename T, std::size_t nCols>
-// const std::array<T, nCols> operator+(const std::array<T, nCols> &row1, const std::array<T, nCols> &row2)
-// {
-//   std::array<T, nCols> result{};
-//   for (std::size_t j{0}; j < nCols; j++)
-//   {
-//     result[j] = row1[j] + row2[j];
-//   }
-//   return result;
-// }
-
 template <typename T, std::size_t R1, std::size_t C1, std::size_t R2, std::size_t C2>
 Matrix<T, R1, (C1 + C2)> concatenatedMatrix(const Matrix<T, R1, C1> &A, const Matrix<T, R2, C2> &B)
 {
@@ -578,37 +449,21 @@ Matrix<T, R1, (C1 + C2)> concatenatedMatrix(const Matrix<T, R1, C1> &A, const Ma
   return concatenatedMatrix;
 }
 
-// Gaussian elimination to solve Ax = B
+// Solve Ax = B by taking x = A.inverse()*B
 template <typename T, std::size_t R1, std::size_t C1>
-Matrix<T, R1, 1> gaussianElimination(const Matrix<T, R1, C1> &A, const Matrix<T, R1, 1> &B)
+Matrix<T, R1, 1> solveLinearSystem(const Matrix<T, R1, C1> &A, const Matrix<T, R1, 1> &B)
 {
-  // assert(R1 == R2 && "Not suitable for solving Ax = B.");
-  constexpr std::size_t augCols{C1 + 1};
-  Matrix<T, R1, (augCols)> augmentedMatrix{concatenatedMatrix(A, B)};
-  T coefficient{};
-
-  for (std::size_t i = 0; i < R1 - 1; ++i)
+  try
   {
-    T pivot{augmentedMatrix(i, i)};
-    if (pivot == 0)
-    {
-      std::cout << "Row interchange must first be perfomed.\n";
-    }
-    for (std::size_t k{i + 1}; k < R1; ++k)
-    {
-      coefficient = augmentedMatrix(k, i) / pivot;
-      for (std::size_t j = 0; j < augCols; ++j)
-      {
-        augmentedMatrix(k, j) -= (coefficient * augmentedMatrix(i, j));
-      }
-    }
+    Matrix<T, R1, C1> inverseA{A.inverse()};
+    Matrix<T, R1, 1> result{inverseA * B};
+    return result;
   }
-  // Gaussian elimination to solve for x in Ax = B
-  Matrix<T, R1, 1> result{};
-  std::cout << augmentedMatrix << '\n';
-  return result;
+  catch (const std::exception &)
+  {
+    throw std::invalid_argument("A is not invertible.");
+  }
 }
-// Reduced Row echilon form to calculate matrix inverse (to be implemented)
 
 // LU Decomposition (to be implemented)
 
@@ -650,14 +505,28 @@ T trace(const Matrix<T, nRows, nCols> &m)
 //////////////////////////////////   MAIN   //////////////////////////////////
 int main()
 {
+  Matrix<double, 3, 3> A{-3, 2, -1, 6, -6, 7, 3, -4, 4};
+  Matrix<double, 3, 1> B{-1, -7, -6};
+  Matrix<double, 3, 1> X{solveLinearSystem(A, B)};
+  std::cout << "X = " << '\n'
+            << X << '\n';
+  Matrix<double, 3, 3> C{-3, 2, -1,
+                         6, -6, 7,
+                         3, -4, 4};
+  std::cout << C.inverse() << '\n';
 
-  // Test: Trace cho ma trận vuông
-  Matrix<int, 3, 3> C{1, 2, 3,
-                      4, 5, 6,
-                      7, 8, 9};
-  std::cout << "Trace(C): " << trace(C) << std::endl;
-
-  Matrix<double, 3, 3> D{2.0, 1.0, 1.0, 1.0, 0.0, 1.0, 0.0, 3.0, 1.0};
+  const Matrix<double, 3, 3> D{2.0, 1.0, 1.0, 1.0, 0.0, 1.0, 0.0, 3.0, 1.0};
   std::cout << D.inverse() << '\n';
+  const Matrix<double, 5, 5> E{2.0, 3.0, 4.0, 5.0, 6.0, 1.0, 2.0, 3.0, 4.0, 5.0, 9.0, 5.0, 3.0, 2.0, 6.0, 2.0, 4.0, 6.0, 5.0, 1.0, 1.0, 7.0, 5.0, 2.0, 3.0};
+  std::cout << E.inverse() << '\n';
+  Matrix<double, 5, 5> F{-7.0, -3.0, -7.0, -6.0, -1.0, 3.0, 0.0, 2.0, -4.0, -3.0, -9.0, -10.0, -2.0, 9.0, -3.0, -2.0, 7.0, -5.0, -10.0, -10.0, -1.0, 1.0, 0.0, 8.0, -5.0};
+  std::cout << F.inverse() << '\n';
+  Matrix<double, 5, 5> G{-7.06711357635508, 2.86204331759976, 8.72551512419021, -3.49596266237113, 1.09637006931382,
+                         2.29334230427082, -8.86162756725844, -5.53715539554703, -7.73341321854147, 8.0623899548081,
+                         -7.06854274385278, -8.29455270479789, 8.44531043955609, 4.84975158392336, -8.9356105292099,
+                         4.54902139094058, 6.89377456364728, 3.57467196456786, -2.29115216667741, -6.82361882016302,
+                         -3.23314126063932, 5.03687573600115, -7.7412062869873, -0.455529780242026, -6.0503439372704};
+  std::cout << G.inverse() << '\n';
+
   return 0;
 }
