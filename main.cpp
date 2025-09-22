@@ -9,6 +9,7 @@
 #include <cmath>
 #include <iomanip>
 #include <functional> // std::reference_wrapper
+#include "comparison.hpp"
 
 template <typename T, std::size_t nRows, std::size_t nCols>
 class Matrix
@@ -95,23 +96,23 @@ public:
   constexpr int length() const { return nRows * nCols; }
 
   // Const Reference to a whole row(i) or column(j)
-  std::array<T, nCols> row(std::size_t i) const
-  {
-    assert(i < nRows);
-    std::array<T, nCols> row_i{};
-    for (std::size_t j{0}; j < nCols; ++j)
-      row_i[j] = (*this)(i, j);
-    return row_i;
-  }
+  // std::array<T, nCols> row(std::size_t i) const
+  // {
+  //   assert(i < nRows);
+  //   std::array<T, nCols> row_i{};
+  //   for (std::size_t j{0}; j < nCols; ++j)
+  //     row_i[j] = (*this)(i, j);
+  //   return row_i;
+  // }
 
-  std::array<T, nRows> col(std::size_t j) const
-  {
-    assert(j < nCols);
-    std::array<T, nRows> col_j{};
-    for (std::size_t i{0}; i < nRows; ++i)
-      col_j[i] = (*this)(i, j);
-    return col_j;
-  }
+  // std::array<T, nRows> col(std::size_t j) const
+  // {
+  //   assert(j < nCols);
+  //   std::array<T, nRows> col_j{};
+  //   for (std::size_t i{0}; i < nRows; ++i)
+  //     col_j[i] = (*this)(i, j);
+  //   return col_j;
+  // }
 
   // Reference to row(i)
   std::span<T> row(std::size_t i)
@@ -190,9 +191,17 @@ public:
     {
       return false;
     }
+    // for (std::size_t i{0}; i < m1.length(); i++)
+    // {
+    //   if (std::abs(m1[i] - m2[i]) > tolerance)
+    //   {
+    //     return false;
+    //   }
+    // }
+    // return true;
     for (std::size_t i{0}; i < m1.length(); i++)
     {
-      if (std::abs(m1[i] - m2[i]) > tolerance)
+      if (!approximatelyEqualAbsRel(m1[i], m2[i]))
       {
         return false;
       }
@@ -205,23 +214,22 @@ public:
     return !(m1 == m2);
   }
 
-  // Separate a matrix to two matrices by a column
-  void splitByColumn(std::size_t colPosition, Matrix &A, Matrix &B)
+  // Separate a matrix to two matrices by a column (position at the beginning of the second matrix)
+  template <std::size_t leftCols, std::size_t rightCols>
+  void splitByColumn(std::size_t colPos,
+                     Matrix<T, nRows, leftCols> &A,
+                     Matrix<T, nRows, rightCols> &B) const
   {
-    assert(A.getRows() == nRows && B.getRows() == nRows && A.getCols() == colPosition && B.getCols() == (nCols - colPosition) && "sum of 2 matrices's size must match the augmented matrix.\n");
+    assert(leftCols == colPos);
+    assert(rightCols == nCols - colPos);
+
     for (std::size_t i = 0; i < nRows; ++i)
       for (std::size_t j = 0; j < nCols; ++j)
       {
-        if (j < colPosition)
-        {
-          assert(j < A.getCols() && "Error index exceeding matrix's size.\n");
+        if (j < colPos)
           A(i, j) = (*this)(i, j);
-        }
         else
-        {
-          assert(j - colPosition < B.getCols() && "Error index exceeding matrix's size.\n");
-          B(i, j - colPosition) = (*this)(i, j);
-        }
+          B(i, j - colPos) = (*this)(i, j);
       }
   }
 
@@ -281,22 +289,22 @@ public:
     return static_cast<int>(index);
   }
 
-  // Find the row with the max element at a given column
-  int indexRowMax(std::size_t j)
+  // Find the row with the max element at a given column (Noted below pivot)
+  std::size_t indexRowMax(std::size_t col, std::size_t startRow = 0) const
   {
-    std::array<T, nRows> col_j = (*this).col(j);
-    T element_max{};
-    std::size_t index{0};
-    for (std::size_t i{0}; i < nRows; i++)
+    assert(col < nCols && startRow < nRows);
+    std::size_t maxRow = startRow;
+    T maxValue = std::abs((*this)(startRow, col));
+    for (std::size_t i = startRow + 1; i < nRows; ++i)
     {
-      if (col_j[i] > element_max)
+      T value = std::abs((*this)(i, col));
+      if (value > maxValue)
       {
-        element_max = col_j[i];
-        index = i;
+        maxValue = value;
+        maxRow = i;
       }
     }
-    // Tim index chua gia tri max trong array exceed0
-    return static_cast<int>(index);
+    return maxRow;
   }
 
   // Transpose matrix
@@ -313,66 +321,59 @@ public:
     return result;
   }
 
-  // Inverse Matrix: To be implemented
-  Matrix<T, nCols, nRows> inverse() const
+  // Inverse Matrix
+  Matrix<T, nRows, nCols> inverse() const
   {
-    static_assert(nRows == nCols, "Inverse only defined for square matrices.");
-  }
-  // Matrix<T, nCols, nRows> inverse() const
-  // {
-  //   static_assert(nRows == nCols, "Inverse only defined for square matrices.");
-  //   // check det
-  //   Matrix<T, nRows, nCols> A(*this);
-  //   Matrix<T, nRows, nCols> I = Matrix<T, nRows, nCols>::identity();
+    if (!isSquare())
+      throw std::invalid_argument("Inverse only defined for square matrices.");
+    // static_assert(nRows == nCols, "Inverse only defined for square matrices.");
+    // int maxCount{100};
+    // int count{0};
+    // bool computeFlag = false;
+    Matrix<T, nRows, nCols> inverseMatrix{};
+    Matrix<T, nRows, nCols> testIdentity{};
+    Matrix<T, nRows, (nCols + nCols)> augmentedMatrix{concatenatedMatrix(*this, Matrix<T, nRows, nCols>::identity())};
+    // while (count < maxCount && !computeFlag)
+    for (std::size_t pivotIndex{0}; pivotIndex < nRows; ++pivotIndex)
+    {
+      std::cout << "Pivot index " << pivotIndex << std::endl;
+      std::size_t maxIndex{augmentedMatrix.indexRowMax(pivotIndex, pivotIndex)};
+      if (maxIndex != pivotIndex)
+      {
 
-  //   for (std::size_t i = 0; i < nRows; ++i)
-  //   {
-  //     // Find pivot
-  //     T pivot = A(i, i);
-  //     std::size_t pivotRow = i;
-  //     for (std::size_t row = i + 1; row < nRows; ++row)
-  //     {
-  //       if (std::abs(A(row, i)) > std::abs(pivot))
-  //       {
-  //         pivot = A(row, i);
-  //         pivotRow = row;
-  //       }
-  //     }
-  //     if (pivot == 0)
-  //     {
-  //       throw std::runtime_error("Matrix is singular and cannot be inverted.");
-  //     }
-  //     // Swap rows if needed
-  //     if (pivotRow != i)
-  //     {
-  //       for (std::size_t col = 0; col < nCols; ++col)
-  //       {
-  //         std::swap(A(i, col), A(pivotRow, col));
-  //         std::swap(I(i, col), I(pivotRow, col));
-  //       }
-  //     }
-  //     // Normalize pivot row
-  //     T invPivot = 1 / A(i, i);
-  //     for (std::size_t col = 0; col < nCols; ++col)
-  //     {
-  //       A(i, col) *= invPivot;
-  //       I(i, col) *= invPivot;
-  //     }
-  //     // Eliminate other rows
-  //     for (std::size_t row = 0; row < nRows; ++row)
-  //     {
-  //       if (row == i)
-  //         continue;
-  //       T factor = A(row, i);
-  //       for (std::size_t col = 0; col < nCols; ++col)
-  //       {
-  //         A(row, col) -= factor * A(i, col);
-  //         I(row, col) -= factor * I(i, col);
-  //       }
-  //     }
-  //   }
-  //   return I;
-  // }
+        augmentedMatrix.swapRows(pivotIndex, maxIndex);
+        std::cout << "Swap rows " << pivotIndex << " and " << maxIndex << std::endl;
+        std::cout << augmentedMatrix << std::endl;
+      }
+      T pivot{augmentedMatrix(pivotIndex, pivotIndex)};
+      if (approximatelyEqualAbsRel(pivot, 0.0)) // approximate to 0
+      {
+        throw std::runtime_error("Matrix is singular and cannot be inverted.");
+      }
+      if (!approximatelyEqualAbsRel(pivot, 1.0))
+      {
+        augmentedMatrix.row(pivotIndex) = augmentedMatrix.row(pivotIndex) / pivot; // normalize pivot
+      }
+      for (std::size_t i{0}; i < nRows; ++i)
+      {
+        if (i == pivotIndex)
+          continue;
+        // If the element is already 0.0, move on
+        if (!approximatelyEqualAbsRel(augmentedMatrix(i, pivotIndex), 0.0))
+        {
+          T factor = -augmentedMatrix(i, pivotIndex); // /pivot = /1.0
+          augmentedMatrix.row(i) = augmentedMatrix.row(i) + factor * augmentedMatrix.row(pivotIndex);
+          std::cout << "Multiply row " << pivotIndex << " by " << factor << " and add it to row " << i << std::endl;
+          std::cout << augmentedMatrix << std::endl;
+        }
+      }
+    }
+    augmentedMatrix.splitByColumn(nCols, testIdentity, inverseMatrix);
+    if (testIdentity == Matrix::identity())
+      return inverseMatrix;
+    else
+      throw std::runtime_error("Matrix inversion failed: result is not an identity matrix.");
+  }
 
   // Bool function to get the characteristics of matrix
   bool isDiagonal() const
@@ -459,46 +460,101 @@ public:
 //////////////////////////////////   END OF MATRIX CLASS   //////////////////////////////////
 
 // Multiply a scalar to a row
-template <typename T, std::size_t nCols>
-std::array<T, nCols> operator*(const T &k, const std::array<T, nCols> &row)
+// template <typename T, std::size_t nCols>
+// std::array<T, nCols> operator*(const T &k, const std::array<T, nCols> &row)
+// {
+//   std::array<T, nCols> result{};
+//   for (std::size_t i = 0; i < nCols; ++i)
+//     result[i] = row[i] * k;
+//   return result;
+// }
+
+// template <typename T, std::size_t nCols>
+// std::array<T, nCols> operator*(const std::array<T, nCols> &row, const T &k)
+// {
+//   return k * row;
+// }
+
+// template <typename T, std::size_t nCols>
+// std::array<T, nCols> operator/(const std::array<T, nCols> &row, const T &k)
+// {
+//   std::array<T, nCols> result{};
+//   for (std::size_t i = 0; i < nCols; ++i)
+//     result[i] = row[i] / k;
+//   return result;
+// }
+
+// template <typename T, std::size_t nCols>
+// std::array<T, nCols> operator/(const T &k, const std::array<T, nCols> &row)
+// {
+//   std::array<T, nCols> result{};
+//   for (std::size_t i = 0; i < nCols; ++i)
+//     result[i] = k / row[i];
+//   return result;
+// }
+// Change the value of row directly
+template <typename T>
+std::span<T> operator*(std::span<T> row, const T &k)
 {
-  std::array<T, nCols> result{};
-  for (std::size_t i = 0; i < nCols; ++i)
-    result[i] = row[i] * k;
-  return result;
+  for (auto &element : row)
+    element *= k;
+  return row;
+}
+
+template <typename T>
+std::span<T> operator*(const T &k, std::span<T> row)
+{
+
+  return row * k;
+}
+
+template <typename T>
+std::span<T> operator/(std::span<T> row, const T &k)
+{
+  for (auto &element : row)
+    element /= k;
+  return row;
+}
+
+template <typename T>
+std::span<T> operator/(const T &k, std::span<T> row)
+{
+  for (auto &element : row)
+    element = k / element;
+  return row;
 }
 
 template <typename T, std::size_t nCols>
-std::array<T, nCols> operator*(const std::array<T, nCols> &row, const T &k)
+std::span<T> operator+(std::span<T> row1, std::span<T> row2)
 {
-  return k * row;
-}
-// // Change the value of row directly
-// template <typename T>
-// std::span<T> operator*(std::span<T> row, const T &k)
-// {
-//   for (auto &element : row)
-//     element *= k;
-//   return row;
-// }
-
-// template <typename T>
-// std::span<T> operator*(const T &k, std::span<T> row)
-// {
-//   return row * k;
-// }
-
-// Adding a row multiplied with a const to another row
-template <typename T, std::size_t nCols>
-const std::array<T, nCols> operator+(const std::array<T, nCols> &row1, const std::array<T, nCols> &row2)
-{
-  std::array<T, nCols> result{};
   for (std::size_t j{0}; j < nCols; j++)
   {
-    result[j] = row1[j] + row2[j];
+    row1[j] += row2[j];
   }
-  return result;
+  return row1;
 }
+
+template <typename T, std::size_t nCols>
+std::span<T> operator-(std::span<T> row1, std::span<T> row2)
+{
+  for (std::size_t j{0}; j < nCols; j++)
+  {
+    row1[j] -= row2[j];
+  }
+  return row1;
+}
+
+// Adding a row multiplied with a const to another row
+// template <typename T, std::size_t nCols>
+// const std::array<T, nCols> operator+(const std::array<T, nCols> &row1, const std::array<T, nCols> &row2)
+// {
+//   std::array<T, nCols> result{};
+//   for (std::size_t j{0}; j < nCols; j++)
+//   {
+//     result[j] = row1[j] + row2[j];
+//   }
+//   return result;
+// }
 
 template <typename T, std::size_t R1, std::size_t C1, std::size_t R2, std::size_t C2>
 Matrix<T, R1, (C1 + C2)> concatenatedMatrix(const Matrix<T, R1, C1> &A, const Matrix<T, R2, C2> &B)
@@ -594,44 +650,6 @@ T trace(const Matrix<T, nRows, nCols> &m)
 //////////////////////////////////   MAIN   //////////////////////////////////
 int main()
 {
-  Matrix<int, 2, 3> B{4, -2, 1,
-                      2, -4, -2};
-
-  // Test: Thay đổi giá trị từng phần tử của hàng 1
-  auto row_refs = B.row(1);
-  for (auto &ref : row_refs)
-  {
-    ref = 42;
-  }
-  std::cout << "Sau khi thay đổi hàng 1:\n"
-            << B << std::endl;
-
-  // Test: Thay đổi giá trị từng phần tử của cột 2
-  auto col_refs = B.col(2);
-  for (auto &ref : col_refs)
-  {
-    ref.get() = 99;
-  }
-  std::cout << "Sau khi thay đổi cột 2:\n"
-            << B << std::endl;
-
-  // Test: Cộng, trừ, nhân ma trận
-  Matrix<int, 2, 3> A{1, 2, 3,
-                      4, 5, 6};
-  std::cout << "A + B:\n"
-            << A + B << std::endl;
-  std::cout << "A - B:\n"
-            << A - B << std::endl;
-  std::cout << "2 * A:\n"
-            << 2 * A << std::endl;
-
-  // Test: Ma trận chuyển vị
-  std::cout << "A chuyển vị:\n"
-            << A.transpose() << std::endl;
-
-  // Test: So sánh ma trận
-  std::cout << std::boolalpha << "A == B? " << (A == B) << std::endl;
-  std::cout << std::boolalpha << "A != B? " << (A != B) << std::endl;
 
   // Test: Trace cho ma trận vuông
   Matrix<int, 3, 3> C{1, 2, 3,
@@ -639,5 +657,7 @@ int main()
                       7, 8, 9};
   std::cout << "Trace(C): " << trace(C) << std::endl;
 
+  Matrix<double, 3, 3> D{2.0, 1.0, 1.0, 1.0, 0.0, 1.0, 0.0, 3.0, 1.0};
+  std::cout << D.inverse() << '\n';
   return 0;
 }

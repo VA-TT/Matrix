@@ -75,6 +75,10 @@
         "xmemory": "cpp",
         "xstring": "cpp",
         "xtr1common": "cpp",
-        "xutility": "cpp"
+        "xutility": "cpp",
+        "variant": "cpp",
+        "map": "cpp",
+        "fstream": "cpp",
+        "mutex": "cpp"
     }
 }
