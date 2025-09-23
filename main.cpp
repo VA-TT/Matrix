@@ -103,6 +103,12 @@ public:
     return std::span<T>(&m_elements[i * nCols], nCols);
   }
 
+  std::span<const T> row(std::size_t i) const
+  {
+    assert(i < nRows);
+    return std::span<const T>(&m_elements[i * nCols], nCols);
+  }
+
   // Reference to col(j): couldn't use std::span (data is not continuous in m_element) and std::array here (as with array reference_wrapper default constructor will fail)
   std::vector<std::reference_wrapper<T>> col(std::size_t j)
   {
@@ -240,6 +246,28 @@ public:
   //   return col_pointer;
   // }
 
+  // Find sub matrix to calculate minor of det(A)
+  // At first I used 2 indices to loop through the Matrix, credit : https://www.youtube.com/watch?v=YVk0nYrwBb0&t=1211s
+  Matrix<T, (nRows - 1), (nCols - 1)> subMatrix(std::size_t row, std::size_t col) const
+  {
+    if (nRows <= 1 || nCols <= 1)
+      throw std::invalid_argument("Cannot create submatrix of size 0x0 from a 1x1 matrix.");
+    Matrix<T, (nRows - 1), (nCols - 1)> sub{};
+    std::size_t k{0};
+    for (std::size_t i{0}; i < nRows; ++i)
+    {
+      for (std::size_t j{0}; j < nCols; ++j)
+      {
+        if (i != row && j != col)
+        {
+          sub[k] = (*this)(i, j);
+          ++k;
+        }
+      }
+    }
+    return sub;
+  }
+
   // Swap 2 rows
   void swapRows(std::size_t i1, std::size_t i2)
   {
@@ -281,7 +309,7 @@ public:
     return result;
   }
 
-  // Inverse Matrix
+  // Inverse Matrix by reduced row echelon form
   Matrix<T, nRows, nCols> inverse() const
   {
     if (!isSquare())
@@ -289,7 +317,11 @@ public:
     Matrix<T, nRows, nCols> inverseMatrix{};
     Matrix<T, nRows, nCols> testIdentity{};
     Matrix<T, nRows, (nCols + nCols)> augmentedMatrix{concatenatedMatrix(*this, Matrix<T, nRows, nCols>::identity())};
-
+    // check det first
+    if (approximatelyEqualAbsRel(det(*this), 0.0))
+    {
+      throw std::invalid_argument("Determinant of Matrix is 0, hence matrix is singular and cannot be inverted.");
+    }
     for (std::size_t pivotIndex{0}; pivotIndex < nRows; ++pivotIndex)
     {
       // std::cout << "Pivot index " << pivotIndex << std::endl;
@@ -456,8 +488,7 @@ Matrix<T, R1, 1> solveLinearSystem(const Matrix<T, R1, C1> &A, const Matrix<T, R
   try
   {
     Matrix<T, R1, C1> inverseA{A.inverse()};
-    Matrix<T, R1, 1> result{inverseA * B};
-    return result;
+    return inverseA * B;
   }
   catch (const std::exception &)
   {
@@ -491,6 +522,31 @@ bool arePairOrthogonal(const Matrix<T, R1, C1> &m1, const Matrix<T, R2, C2> &m2)
   return false; // Both matrices must not be 0
 }
 
+// find the most 0 row to calculate det(A) faster
+template <typename T, std::size_t nRows, std::size_t nCols>
+std::size_t mostZeroRow(const Matrix<T, nRows, nCols> &m)
+{
+  std::array<int, nRows> exceed0{};
+  std::size_t index{0};
+  for (std::size_t i{0}; i < nRows; i++)
+  {
+    for (const auto &element : m.row(i))
+    {
+      if (approximatelyEqualAbsRel(element, 0.0))
+        ++exceed0[i];
+    }
+  }
+  for (std::size_t i{1}; i < nRows; i++)
+  {
+    if (exceed0[i] > exceed0[index])
+    {
+      index = i;
+    }
+  }
+  // Tim index chua gia tri max trong array exceed0
+  return index;
+}
+
 // Calculate trace(A)
 template <typename T, std::size_t nRows, std::size_t nCols>
 T trace(const Matrix<T, nRows, nCols> &m)
@@ -502,11 +558,53 @@ T trace(const Matrix<T, nRows, nCols> &m)
   return result;
 }
 
+// Calculate det(A) using Laplace expansion
+// Though this algorithm is not efficient with huge matrices. Considering implementing LU decomposition insted...
+// template <typename T>
+// T det(const Matrix<T, 1, 1> &m)
+// {
+//   return m(0, 0);
+// }
+
+// // Base case: 2x2
+// template <typename T>
+// T det(const Matrix<T, 2, 2> &m)
+// {
+//   return m(0, 0) * m(1, 1) - m(0, 1) * m(1, 0);
+// }
+
+template <typename T, std::size_t nRows, std::size_t nCols>
+T det(const Matrix<T, nRows, nCols> &m)
+{
+  static_assert(nRows == nCols, "Determinant can only be computed for square matrices");
+
+  if constexpr (nRows == 1)
+    return m(0, 0);
+  else if constexpr (nRows == 2)
+    return m(0, 0) * m(1, 1) - m(0, 1) * m(1, 0);
+  else
+  {
+    T detSum{};
+    std::size_t rowNum{mostZeroRow(m)};
+    for (std::size_t j = 0; j < nCols; ++j)
+    {
+      T a = m(rowNum, j);
+      if (approximatelyEqualAbsRel(a, 0.0))
+        continue;
+      int sign = ((rowNum + j) % 2 == 0) ? 1 : -1; // (-1)^(row+col)
+      Matrix<T, nRows - 1, nCols - 1> sub = m.subMatrix(rowNum, j);
+      detSum += static_cast<T>(sign) * a * det(sub);
+    }
+    return detSum;
+  }
+}
+
 //////////////////////////////////   MAIN   //////////////////////////////////
 int main()
 {
   Matrix<double, 3, 3> A{-3, 2, -1, 6, -6, 7, 3, -4, 4};
   Matrix<double, 3, 1> B{-1, -7, -6};
+  // Check Ax = B
   Matrix<double, 3, 1> X{solveLinearSystem(A, B)};
   std::cout << "X = " << '\n'
             << X << '\n';
@@ -515,8 +613,10 @@ int main()
                          3, -4, 4};
   std::cout << C.inverse() << '\n';
 
+  // Check inverse
   const Matrix<double, 3, 3> D{2.0, 1.0, 1.0, 1.0, 0.0, 1.0, 0.0, 3.0, 1.0};
   std::cout << D.inverse() << '\n';
+  const Matrix<double, 3, 3> D1{1.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0}; // singular matrix
   const Matrix<double, 5, 5> E{2.0, 3.0, 4.0, 5.0, 6.0, 1.0, 2.0, 3.0, 4.0, 5.0, 9.0, 5.0, 3.0, 2.0, 6.0, 2.0, 4.0, 6.0, 5.0, 1.0, 1.0, 7.0, 5.0, 2.0, 3.0};
   std::cout << E.inverse() << '\n';
   Matrix<double, 5, 5> F{-7.0, -3.0, -7.0, -6.0, -1.0, 3.0, 0.0, 2.0, -4.0, -3.0, -9.0, -10.0, -2.0, 9.0, -3.0, -2.0, 7.0, -5.0, -10.0, -10.0, -1.0, 1.0, 0.0, 8.0, -5.0};
@@ -527,6 +627,19 @@ int main()
                          4.54902139094058, 6.89377456364728, 3.57467196456786, -2.29115216667741, -6.82361882016302,
                          -3.23314126063932, 5.03687573600115, -7.7412062869873, -0.455529780242026, -6.0503439372704};
   std::cout << G.inverse() << '\n';
+  Matrix<double, 5, 5> H{6, 3, 2, 4, 0, 9, 0, 4, 1, 0, 8, -5, 6, 7, -2, -2, 0, 0, 0, 0, 4, 0, 3, 2, 0};
+
+  // Check det
+  std::cout
+      << D.subMatrix(0, 0) << '\n';
+  std::cout << D.subMatrix(0, 1) << '\n';
+  std::cout << E.subMatrix(0, 0) << '\n';
+  // std::cout << B.subMatrix(0, 0) << '\n';
+  std::cout << det(D) << '\n';
+  std::cout << det(E) << '\n';
+  std::cout << det(D1) << '\n';
+  std::cout << det(H) << '\n';
+  std::cout << D1.inverse() << '\n';
 
   return 0;
 }
