@@ -10,7 +10,7 @@
 #include <iomanip>
 #include <functional> // std::reference_wrapper
 #include "comparison.hpp"
-#include <type_traits> // thêm dòng này
+#include <type_traits> // precision
 
 template <typename T, std::size_t nRows, std::size_t nCols>
 class Matrix
