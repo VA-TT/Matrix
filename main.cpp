@@ -1,16 +1,16 @@
 #include <array>
 #include <vector>
-#include <span>
+#include <span> //Cheap view of array
 #include <iostream>
-#include <algorithm>
-#include <cassert>
-#include <stdexcept>
-#include <initializer_list>
-#include <cmath>
-#include <iomanip>
-#include <functional> // std::reference_wrapper
-#include "comparison.hpp"
-#include <type_traits> // precision
+#include <algorithm>        //max, min, swap, sort
+#include <cassert>          //assert
+#include <stdexcept>        //throw exception
+#include <initializer_list> //initiate list
+#include <cmath>            //power
+#include <iomanip>          //tab
+#include <functional>       // std::reference_wrapper
+#include "comparison.hpp"   //Approximative Comparsion
+#include <type_traits>      // precision
 
 template <typename T, std::size_t nRows, std::size_t nCols>
 class Matrix
@@ -455,6 +455,7 @@ public:
   }
 
   // Resize function?
+  // EigenValue, EigenVector? Dyadic? Power Matrix? LU decomposition
 };
 
 //////////////////////////////////   END OF MATRIX CLASS   //////////////////////////////////
