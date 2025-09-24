@@ -629,6 +629,8 @@ int main()
                          -3.23314126063932, 5.03687573600115, -7.7412062869873, -0.455529780242026, -6.0503439372704};
   std::cout << G.inverse() << '\n';
   Matrix<double, 5, 5> H{6, 3, 2, 4, 0, 9, 0, 4, 1, 0, 8, -5, 6, 7, -2, -2, 0, 0, 0, 0, 4, 0, 3, 2, 0};
+  Matrix<double, 1, 1> H1{6};
+  Matrix<double, 2, 2> H2{6, 3, 2, 4};
 
   // Check det
   std::cout
@@ -640,7 +642,12 @@ int main()
   std::cout << det(E) << '\n';
   std::cout << det(D1) << '\n';
   std::cout << det(H) << '\n';
+  std::cout << det(H1) << '\n';
+  std::cout << det(H2) << '\n';
+  std::cout << H1.inverse() << '\n';
+  std::cout << H2.inverse() << '\n';
   std::cout << D1.inverse() << '\n';
+  std::cout  << D.subMatrix(   0, 0) << '\n';
 
   return 0;
 }

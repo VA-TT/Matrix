@@ -29,7 +29,6 @@ public:
         simplify();
     }
 
-    // Các toán tử số học
     Fraction operator+(const Fraction &other) const
     {
         return Fraction(numerator * other.denominator + other.numerator * denominator,
@@ -61,7 +60,6 @@ public:
         return Fraction(-numerator, denominator);
     }
 
-    // Toán tử so sánh
     bool operator==(const Fraction &other) const
     {
         return numerator * other.denominator == other.numerator * denominator;
@@ -72,7 +70,6 @@ public:
         return !(*this == other);
     }
 
-    // Toán tử xuất
     friend std::ostream &operator<<(std::ostream &out, const Fraction &f)
     {
         if (f.denominator == 1)
