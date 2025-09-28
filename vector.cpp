@@ -1,4 +1,5 @@
-#include "comparison.hpp" //Approximative Comparsion
+#include "comparison.h" //Approximative Comparsion
+#include "kroneckerDelta_LeviCivita.h"
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -7,34 +8,33 @@
 #include <iostream>
 #include <stdexcept>
 #include <vector>
-#include "kroneckerDelta_LeviCivita.h"
 
 using Index = std::ptrdiff_t; // typedef
 
-template <typename T> class Vect3d {
+template <typename T> class Vector {
 private:
   std::vector<T> m_elements{};
 
 public:
   // Default Constructors
-  Vect3d() = default;
-  Vect3d(const Vect3d &) = default;
-  Vect3d(Vect3d &&) = default;
-  Vect3d &operator=(const Vect3d &) = default;
-  Vect3d &operator=(Vect3d &&) = default;
-  ~Vect3d() = default;
+  Vector() = default;
+  Vector(const Vector &) = default;
+  Vector(Vector &&) = default;
+  Vector &operator=(const Vector &) = default;
+  Vector &operator=(Vector &&) = default;
+  ~Vector() = default;
 
   // Constructor with length n of elements which are 0
-  explicit Vect3d(std::size_t n) : m_elements(n, T{}) {}
+  explicit Vector(std::size_t n) : m_elements(n, T{}) {}
 
   // // Constructor with length n of elements which are value
-  // Vect3d(std::size_t n, const T& value) : m_elements(n, value) {}
+  // Vector(std::size_t n, const T& value) : m_elements(n, value) {}
 
   // Constructor với initializer_list
-  Vect3d(std::initializer_list<T> list) : m_elements(list) {}
+  Vector(std::initializer_list<T> list) : m_elements(list) {}
 
   // // Constructor 3D (x, y, z)
-  // Vect3d(const T& x, const T& y, const T& z) : m_elements{x, y, z} {}
+  // Vector(const T& x, const T& y, const T& z) : m_elements{x, y, z} {}
 
   // Signed indexing với assert
   auto &operator[](Index i) {
@@ -83,7 +83,7 @@ public:
   void push_back(const T &value) { m_elements.push_back(value); }
 
   // Print
-  friend std::ostream &operator<<(std::ostream &os, const Vect3d<T> &v) {
+  friend std::ostream &operator<<(std::ostream &os, const Vector<T> &v) {
     os << "[";
     for (Index i = 0; i < v.size(); ++i) {
       os << v[i];
@@ -95,14 +95,14 @@ public:
   }
 
   // Projection on another vector
-  Vect3d<T> projection(const Vect3d &other) const {
+  Vector<T> projection(const Vector &other) const {
     return normalize(other) * dotProduct(*this, normalize(other));
   }
 };
 
-// Vect3d operators
+// Vector operators
 template <typename T>
-bool operator==(const Vect3d<T> &v1, const Vect3d<T> &v2) {
+bool operator==(const Vector<T> &v1, const Vector<T> &v2) {
   if (v1.size() != v2.size())
     return false;
   for (Index i = 0; i < v1.size(); ++i) {
@@ -113,47 +113,47 @@ bool operator==(const Vect3d<T> &v1, const Vect3d<T> &v2) {
 }
 
 template <typename T>
-bool operator!=(const Vect3d<T> &v1, const Vect3d<T> &v2) {
+bool operator!=(const Vector<T> &v1, const Vector<T> &v2) {
   return !(v1 == v2);
 }
 
 template <typename T>
-Vect3d<T> operator+(const Vect3d<T> &v1, const Vect3d<T> &v2) {
+Vector<T> operator+(const Vector<T> &v1, const Vector<T> &v2) {
   if (v1.size() != v2.size())
     throw std::invalid_argument("Vectors must have the same dimension.");
 
-  Vect3d<T> result(v1.size());
+  Vector<T> result(v1.size());
   for (Index i = 0; i < v1.size(); ++i)
     result[i] = v1[i] + v2[i];
   return result;
 }
 
 // Scalar multiplication (scalar * vector)
-template <typename T> Vect3d<T> operator*(const T &k, const Vect3d<T> &v) {
-  Vect3d<T> result(v.size());
+template <typename T> Vector<T> operator*(const T &k, const Vector<T> &v) {
+  Vector<T> result(v.size());
   for (Index i = 0; i < v.size(); ++i)
     result[i] = k * v[i];
   return result;
 }
 
 // Scalar multiplication (vector * scalar)
-template <typename T> Vect3d<T> operator*(const Vect3d<T> &v, const T &k) {
+template <typename T> Vector<T> operator*(const Vector<T> &v, const T &k) {
   return k * v;
 }
 
 // Unary minus
-template <typename T> Vect3d<T> operator-(const Vect3d<T> &v) {
+template <typename T> Vector<T> operator-(const Vector<T> &v) {
   return T{-1} * v;
 }
 
-// Vect3d subtraction
+// Vector subtraction
 template <typename T>
-Vect3d<T> operator-(const Vect3d<T> &v1, const Vect3d<T> &v2) {
+Vector<T> operator-(const Vector<T> &v1, const Vector<T> &v2) {
   return v1 + (-v2);
 }
 
 // Dot product
-template <typename T> T dotProduct(const Vect3d<T> &v1, const Vect3d<T> &v2) {
+template <typename T> T dotProduct(const Vector<T> &v1, const Vector<T> &v2) {
   if (v1.size() != v2.size())
     throw std::invalid_argument("Vectors must have the same dimension.");
 
@@ -165,48 +165,68 @@ template <typename T> T dotProduct(const Vect3d<T> &v1, const Vect3d<T> &v2) {
 
 // Cross product (3D)
 template <typename T>
-Vect3d<T> crossProduct(const Vect3d<T> &v1, const Vect3d<T> &v2) {
+Vector<T> crossProduct(const Vector<T> &v1, const Vector<T> &v2) {
   if (v1.size() != 3 || v2.size() != 3)
     throw std::invalid_argument(
         "Cross product is only defined for 3D vectors.");
-
-  Vect3d<T> result(3);
+  // Method 1
+  Vector<T> result(3);
   result[0] = v1[1] * v2[2] - v1[2] * v2[1];
   result[1] = v1[2] * v2[0] - v1[0] * v2[2];
   result[2] = v1[0] * v2[1] - v1[1] * v2[0];
   return result;
 }
 
-// Vect3d magnitude/norm
-template <typename T> T magnitude(const Vect3d<T> &v) {
+// Cross product (3D) - Method 2 using Levi-Civita
+template <typename T>
+Vector<T> crossProduct2(const Vector<T> &v1, const Vector<T> &v2) {
+  if (v1.size() != 3 || v2.size() != 3)
+    throw std::invalid_argument(
+        "Cross product is only defined for 3D vectors.");
+
+  // Method 2: Using Levi-Civita symbol
+  Vector<T> result(3);
+  for (Index i = 0; i < 3; ++i) {
+    result[i] = T{0}; // Initialize to zero
+    for (Index j = 0; j < 3; ++j) {
+      for (Index k = 0; k < 3; ++k) {
+        result[i] += leviCivita(i, j, k) * v1[j] * v2[k];
+      }
+    }
+  }
+  return result;
+}
+
+// Vector magnitude/norm
+template <typename T> T magnitude(const Vector<T> &v) {
   return std::sqrt(dotProduct(v, v));
 }
 
 // Unit vector
-template <typename T> Vect3d<T> normalize(const Vect3d<T> &v) {
+template <typename T> Vector<T> normalize(const Vector<T> &v) {
   T mag = magnitude(v);
-  if (mag == T{})
+  if (approximatelyEqualAbsRel(mag, T{0.0}))
     throw std::invalid_argument("Cannot normalize zero vector.");
-  return v * (T{1} / mag);
+  return v * (T{1.0} / mag);
 }
 
-// Unit vector
-template <typename T> T angleRad(const Vect3d<T> &v1, const Vect3d<T> &v2) {
+// Angle functions
+template <typename T> T angleRad(const Vector<T> &v1, const Vector<T> &v2) {
   return std::acos(dotProduct(v1, v2) / (magnitude(v1) * magnitude(v2)));
 }
 
-template <typename T> T angleDegree(const Vect3d<T> &v1, const Vect3d<T> &v2) {
+template <typename T> T angleDegree(const Vector<T> &v1, const Vector<T> &v2) {
   const T PI = T{3.14159265358979323846};
   return angleRad(v1, v2) * T{180} / PI;
 }
 
 template <typename T>
-bool isPerpendicular(const Vect3d<T> &v1, const Vect3d<T> &v2) {
+bool isPerpendicular(const Vector<T> &v1, const Vector<T> &v2) {
   return approximatelyEqualAbsRel(dotProduct(v1, v2), T{});
 }
 
 template <typename T>
-bool isParallel(const Vect3d<T> &v1, const Vect3d<T> &v2) {
+bool isParallel(const Vector<T> &v1, const Vector<T> &v2) {
   return approximatelyEqualAbsRel(magnitude(crossProduct(v1, v2)), T{});
 }
 
@@ -216,9 +236,9 @@ int main() {
 
   // Test 1: Constructors
   std::cout << "1. Testing Constructors:" << std::endl;
-  Vect3d<int> v1;                // Default constructor
-  Vect3d<int> v2(5);             // Size constructor (5 zeros)
-  Vect3d<int> v3{1, 2, 3, 4, 5}; // Initializer list
+  Vector<int> v1;                // Default constructor
+  Vector<int> v2(5);             // Size constructor (5 zeros)
+  Vector<int> v3{1, 2, 3, 4, 5}; // Initializer list
 
   std::cout << "v1 (default): " << v1 << " (size: " << v1.size() << ")"
             << std::endl;
@@ -229,7 +249,7 @@ int main() {
 
   // Test 2: Indexing
   std::cout << "2. Testing Indexing:" << std::endl;
-  Vect3d<double> v4{10.5, 20.3, 30.7, 40.1};
+  Vector<double> v4{10.5, 20.3, 30.7, 40.1};
   std::cout << "v4: " << v4 << std::endl;
   std::cout << "v4[0] = " << v4[0] << std::endl;
   std::cout << "v4[2] = " << v4[2] << std::endl;
@@ -243,10 +263,10 @@ int main() {
   std::cout << "Using Index idx=3: v4[idx] = " << v4[idx] << std::endl;
   std::cout << std::endl;
 
-  // Test 3: Vect3d Operations
-  std::cout << "3. Testing Vect3d Operations:" << std::endl;
-  Vect3d<double> va{1.0, 2.0, 3.0};
-  Vect3d<double> vb{4.0, 5.0, 6.0};
+  // Test 3: Vector Operations
+  std::cout << "3. Testing Vector Operations:" << std::endl;
+  Vector<double> va{1.0, 2.0, 3.0};
+  Vector<double> vb{4.0, 5.0, 6.0};
 
   std::cout << "va = " << va << std::endl;
   std::cout << "vb = " << vb << std::endl;
@@ -267,10 +287,10 @@ int main() {
   std::cout << "-va = " << vg << std::endl;
   std::cout << std::endl;
 
-  // Test 4: Vect3d Math
-  std::cout << "4. Testing Vect3d Math:" << std::endl;
-  Vect3d<double> u1{3.0, 4.0, 0.0};
-  Vect3d<double> u2{1.0, 0.0, 0.0};
+  // Test 4: Vector Math
+  std::cout << "4. Testing Vector Math:" << std::endl;
+  Vector<double> u1{3.0, 4.0, 0.0};
+  Vector<double> u2{1.0, 0.0, 0.0};
 
   std::cout << "u1 = " << u1 << std::endl;
   std::cout << "u2 = " << u2 << std::endl;
@@ -293,9 +313,17 @@ int main() {
   std::cout << "Magnitude of unit u1 = " << magnitude(unit1) << std::endl;
   std::cout << std::endl;
 
+  // Test 4a: Testing CrossProduct2 (Levi-Civita Method)
+  std::cout << "4a. Testing CrossProduct2 (Levi-Civita Method):" << std::endl;
+  auto cross2 = crossProduct2(u1, u2);
+  std::cout << "Cross product2 u1×u2 = " << cross2 << std::endl;
+  std::cout << "crossProduct == crossProduct2: "
+            << (cross == cross2 ? "✓ SAME" : "✗ DIFFERENT") << std::endl;
+  std::cout << std::endl;
+
   // Test 5: Resize and Push Back
   std::cout << "5. Testing Resize and Push Back:" << std::endl;
-  Vect3d<int> vr{10, 20, 30};
+  Vector<int> vr{10, 20, 30};
   std::cout << "Original vr: " << vr << " (size: " << vr.size() << ")"
             << std::endl;
 
@@ -316,8 +344,8 @@ int main() {
   std::cout << "6. Testing Edge Cases:" << std::endl;
 
   try {
-    Vect3d<int> v_small{1, 2};
-    Vect3d<int> v_big{1, 2, 3, 4};
+    Vector<int> v_small{1, 2};
+    Vector<int> v_big{1, 2, 3, 4};
     std::cout << "Trying to add vectors of different sizes..." << std::endl;
     auto result = v_small + v_big;
   } catch (const std::exception &e) {
@@ -325,7 +353,7 @@ int main() {
   }
 
   try {
-    Vect3d<double> zero_vec{0.0, 0.0, 0.0};
+    Vector<double> zero_vec{0.0, 0.0, 0.0};
     std::cout << "Trying to normalize zero vector..." << std::endl;
     auto unit = normalize(zero_vec);
   } catch (const std::exception &e) {
@@ -333,8 +361,8 @@ int main() {
   }
 
   try {
-    Vect3d<int> v2d_1{1, 2};
-    Vect3d<int> v2d_2{3, 4};
+    Vector<int> v2d_1{1, 2};
+    Vector<int> v2d_2{3, 4};
     std::cout << "Trying cross product on 2D vectors..." << std::endl;
     auto cross_2d = crossProduct(v2d_1, v2d_2);
   } catch (const std::exception &e) {
@@ -347,9 +375,9 @@ int main() {
   // Test 7: Projection
   std::cout << "7. Testing Vector Projection:" << std::endl;
 
-  Vect3d<double> proj_a{3.0, 4.0, 0.0}; // Vector a
-  Vect3d<double> proj_b{1.0, 0.0, 0.0}; // Unit vector along x-axis
-  Vect3d<double> proj_c{2.0, 2.0, 0.0}; // 45-degree vector
+  Vector<double> proj_a{3.0, 4.0, 0.0}; // Vector a
+  Vector<double> proj_b{1.0, 0.0, 0.0}; // Unit vector along x-axis
+  Vector<double> proj_c{2.0, 2.0, 0.0}; // 45-degree vector
 
   std::cout << "Vector proj_a = " << proj_a << std::endl;
   std::cout << "Vector proj_b = " << proj_b << std::endl;
@@ -368,9 +396,9 @@ int main() {
   // Test 8: Angle Calculation
   std::cout << "8. Testing Angle Calculation:" << std::endl;
 
-  Vect3d<double> angle_v1{1.0, 0.0, 0.0}; // Unit vector along x-axis
-  Vect3d<double> angle_v2{0.0, 1.0, 0.0}; // Unit vector along y-axis
-  Vect3d<double> angle_v3{1.0, 1.0, 0.0}; // 45-degree vector
+  Vector<double> angle_v1{1.0, 0.0, 0.0}; // Unit vector along x-axis
+  Vector<double> angle_v2{0.0, 1.0, 0.0}; // Unit vector along y-axis
+  Vector<double> angle_v3{1.0, 1.0, 0.0}; // 45-degree vector
 
   std::cout << "angle_v1 = " << angle_v1 << std::endl;
   std::cout << "angle_v2 = " << angle_v2 << std::endl;
@@ -393,9 +421,9 @@ int main() {
   // Test 9: Perpendicular and Parallel
   std::cout << "9. Testing Perpendicular and Parallel:" << std::endl;
 
-  Vect3d<double> perp_x{1.0, 0.0, 0.0}; // Unit vector along x
-  Vect3d<double> perp_y{0.0, 1.0, 0.0}; // Unit vector along y
-  Vect3d<double> para_x{2.0, 0.0, 0.0}; // Parallel to perp_x
+  Vector<double> perp_x{1.0, 0.0, 0.0}; // Unit vector along x
+  Vector<double> perp_y{0.0, 1.0, 0.0}; // Unit vector along y
+  Vector<double> para_x{2.0, 0.0, 0.0}; // Parallel to perp_x
 
   std::cout << "perp_x = " << perp_x << std::endl;
   std::cout << "perp_y = " << perp_y << std::endl;

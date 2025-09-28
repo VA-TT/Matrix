@@ -1,981 +1,627 @@
-    // Consider return m_elements[(i - 1) * nCols + (j - 1)]; in order to accessing the matrices with index starting from 1 in mathematic
-    // Consider use signed index like did in Vector class
+#include "Matrix.h" //Approximative Comparsion
+#include "Vector.h"
+#include "iostream"
+#include <iomanip>     //tab
+#include <stdexcept>   //throw exception
+#include <type_traits> // precision
 
-
-#include <array>
-#include <vector>
-#include <span> //Cheap view of array
-#include <iostream>
-#include <algorithm>        //max, min, swap, sort
-#include <cassert>          //assert
-#include <stdexcept>        //throw exception
-#include <initializer_list> //initiate list
-#include <cmath>            //power
-#include <iomanip>          //tab
-#include <functional>       // std::reference_wrapper
-#include "comparison.hpp"   //Approximative Comparsion
-#include <type_traits>      // precision
-
-template <typename T, std::size_t nRows, std::size_t nCols>
-class Matrix
-{
-private:
-  std::array<T, nRows * nCols> m_elements{};
-
-public:
-  // Constructors, Destructors
-  Matrix(std::initializer_list<T> list)
-  {
-    assert(list.size() == nRows * nCols);
-    std::copy(list.begin(), list.end(), m_elements.begin());
-  }
-  Matrix() = default;
-  Matrix(const Matrix &) = default;
-  Matrix(Matrix &&) = default;
-  Matrix &operator=(const Matrix &) = default;
-  Matrix &operator=(Matrix &&) = default;
-  ~Matrix() = default;
-
-  // 0 Matrix, 1 Matrix and Identity Matrix and functions to reset, static to make them create one copy only
-  static Matrix zero()
-  {
-    return Matrix{};
-  }
-  void resetZero()
-  {
-    (*this) = Matrix::zero();
-  }
-
-  static Matrix ones()
-  {
-    Matrix result{};
-    std::fill(result.m_elements.begin(), result.m_elements.end(), 1);
-    return result;
-  }
-  void resetOnes()
-  {
-    (*this) = Matrix::ones();
-  }
-
-  static Matrix identity()
-  {
-    Matrix result{};
-    for (std::size_t i = 0; i < std::min(nRows, nCols); ++i)
-      result(i, i) = 1.0;
-    return result;
-  }
-  void resetIdentity()
-  {
-    (*this) = Matrix::identity();
-  }
-
-  // Accessing the elements in the array with one parameter (i)
-  T &operator[](std::size_t i)
-  {
-    assert(i < this->length());
-    return m_elements[i];
-  }
-  const T &operator[](std::size_t i) const
-  {
-    assert(i < this->length());
-    return m_elements[i];
-  }
-
-  // Accessing the elements in the matrices with two parameters (i,j)
-  T &operator()(std::size_t i, std::size_t j)
-  {
-    assert(i < nRows && j < nCols);
-    return m_elements[i * nCols + j];
-  }
-
-  const T &operator()(std::size_t i, std::size_t j) const
-  {
-    assert(i < nRows && j < nCols);
-    return m_elements[i * nCols + j];
-  }
-
-  // Getters to get number of rows & columns + total elements numbers
-  constexpr std::size_t getCols() const { return nCols; }
-  constexpr std::size_t getRows() const { return nRows; }
-  constexpr std::size_t length() const { return nRows * nCols; }
-
-  // Reference to row(i)
-  std::span<T> row(std::size_t i)
-  {
-    assert(i < nRows);
-    return std::span<T>(&m_elements[i * nCols], nCols);
-  }
-
-  std::span<const T> row(std::size_t i) const
-  {
-    assert(i < nRows);
-    return std::span<const T>(&m_elements[i * nCols], nCols);
-  }
-
-  // Reference to col(j): couldn't use std::span (data is not continuous in m_element) and std::array here (as with array reference_wrapper default constructor will fail)
-  std::vector<std::reference_wrapper<T>> col(std::size_t j)
-  {
-    assert(j < nCols);
-    std::vector<std::reference_wrapper<T>> col_refs;
-    col_refs.reserve(nRows);
-    for (std::size_t i = 0; i < nRows; ++i)
-    {
-      col_refs.push_back(std::ref((*this)(i, j)));
-    }
-    return col_refs;
-  }
-
-  // outputting matrix
-  friend std::ostream &operator<<(std::ostream &out, const Matrix &matrix)
-  {
-    std::ios oldState(nullptr);
-    oldState.copyfmt(out); // save stream state
-
-    if constexpr (std::is_floating_point_v<T>)
-    {
-      out << std::fixed << std::setprecision(3);
-    }
-
-    constexpr int tab = 10;
-    for (std::size_t i = 0; i < nRows; ++i)
-    {
-      out << "|";
-      for (std::size_t j = 0; j < nCols; ++j)
-      {
-        out << std::setw(tab) << matrix(i, j);
-      }
-      out << " |" << '\n';
-    }
-
-    out.copyfmt(oldState);
-    return out;
-  }
-
-  // Matrix algebra operators
-  friend Matrix operator*(T k, const Matrix &m)
-  {
-    Matrix<T, nRows, nCols> result{m};
-    for (auto &e : result.m_elements)
-    {
-      e *= k;
-    }
-    return result;
-  }
-  friend Matrix operator*(const Matrix &m, T k)
-  {
-    return k * m;
-  }
-
-  friend Matrix operator+(const Matrix &m1, const Matrix &m2)
-  {
-    assert(m1.getCols() == m2.getCols() && m1.getRows() == m2.getRows() && "Unable to perform matrix addition/substraction.");
-    Matrix<T, nRows, nCols> result{m1};
-    for (std::size_t i{0}; i < result.length(); ++i)
-      result[i] += m2[i];
-    return result;
-  }
-
-  friend Matrix operator-(const Matrix &m1, const Matrix &m2)
-  {
-    return m1 + (-1) * m2;
-  }
-
-  Matrix operator-() const
-  {
-    return (-1) * (*this);
-  }
-
-  friend bool operator==(const Matrix &m1, const Matrix &m2) // co the vut ra ngoai duoc
-  {
-    if (m1.getCols() != m2.getCols() || m1.getRows() != m2.getRows())
-    {
-      return false;
-    }
-    for (std::size_t i{0}; i < m1.length(); i++)
-    {
-      if (!approximatelyEqualAbsRel(m1[i], m2[i]))
-      {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  friend bool operator!=(const Matrix &m1, const Matrix &m2)
-  {
-    return !(m1 == m2);
-  }
-
-  // Separate a matrix to two matrices by a column (position at the beginning of the second matrix)
-  template <std::size_t leftCols, std::size_t rightCols>
-  void splitByColumn(std::size_t colPos,
-                     Matrix<T, nRows, leftCols> &A,
-                     Matrix<T, nRows, rightCols> &B) const
-  {
-    assert(leftCols == colPos);
-    assert(rightCols == nCols - colPos);
-
-    for (std::size_t i = 0; i < nRows; ++i)
-      for (std::size_t j = 0; j < nCols; ++j)
-      {
-        if (j < colPos)
-          A(i, j) = (*this)(i, j);
-        else
-          B(i, j - colPos) = (*this)(i, j);
-      }
-  }
-
-  // // Pointer to a whole row(i) or column(j)
-  // std::array<T *, nCols> rowPointer(std::size_t i)
-  // {
-  //   assert(i < nRows);
-  //   std::array<T *, nCols> row_pointer{};
-  //   for (std::size_t j = 0; j < nCols; ++j)
-  //   {
-  //     row_pointer[j] = &(*this)(i, j);
-  //   }
-  //   return row_pointer;
-  // }
-
-  // std::array<T *, nRows> colPointer(std::size_t j)
-  // {
-  //   assert(j < nCols);
-  //   std::array<T *, nRows> col_pointer{};
-  //   for (std::size_t i = 0; i < nRows; ++i)
-  //   {
-  //     col_pointer[i] = &(*this)(i, j);
-  //   }
-  //   return col_pointer;
-  // }
-
-  // Find sub matrix to calculate minor of det(A)
-  // At first I used 2 indices to loop through the Matrix, credit : https://www.youtube.com/watch?v=YVk0nYrwBb0&t=1211s
-  Matrix<T, (nRows - 1), (nCols - 1)> subMatrix(std::size_t row, std::size_t col) const
-  {
-    if (nRows <= 1 || nCols <= 1)
-      throw std::invalid_argument("Cannot create submatrix of size 0x0 from a 1x1 matrix.");
-    Matrix<T, (nRows - 1), (nCols - 1)> sub{};
-    std::size_t k{0};
-    for (std::size_t i{0}; i < nRows; ++i)
-    {
-      for (std::size_t j{0}; j < nCols; ++j)
-      {
-        if (i != row && j != col)
-        {
-          sub[k] = (*this)(i, j);
-          ++k;
-        }
-      }
-    }
-    return sub;
-  }
-
-  // Swap 2 rows
-  void swapRows(std::size_t i1, std::size_t i2)
-  {
-    for (std::size_t j{0}; j < nCols; ++j)
-    {
-      std::swap((*this)(i1, j), (*this)(i2, j));
-    }
-  }
-
-  // Find the row with the max element at a given column (Noted below pivot)
-  std::size_t indexRowMax(std::size_t col, std::size_t startRow = 0) const
-  {
-    assert(col < nCols && startRow < nRows);
-    std::size_t maxRow = startRow;
-    T maxValue = std::abs((*this)(startRow, col));
-    for (std::size_t i = startRow + 1; i < nRows; ++i)
-    {
-      T value = std::abs((*this)(i, col));
-      if (value > maxValue)
-      {
-        maxValue = value;
-        maxRow = i;
-      }
-    }
-    return maxRow;
-  }
-
-  // Transpose matrix
-  Matrix<T, nCols, nRows> transpose() const
-  {
-    Matrix<T, nCols, nRows> result{};
-    for (std::size_t j = 0; j < nCols; ++j)
-    {
-      for (std::size_t i = 0; i < nRows; ++i)
-      {
-        result(j, i) = (*this)(i, j);
-      }
-    }
-    return result;
-  }
-
-  // Inverse Matrix by reduced row echelon form
-  Matrix<T, nRows, nCols> inverse() const
-  {
-    if (!isSquare())
-      throw std::invalid_argument("Inverse only defined for square matrices.");
-    Matrix<T, nRows, nCols> inverseMatrix{};
-    Matrix<T, nRows, nCols> testIdentity{};
-    Matrix<T, nRows, (nCols + nCols)> augmentedMatrix{concatenatedMatrix(*this, Matrix<T, nRows, nCols>::identity())};
-    // check det first
-    if (approximatelyEqualAbsRel(det(*this), 0.0))
-    {
-      throw std::invalid_argument("Determinant of Matrix is 0, hence matrix is singular and cannot be inverted.");
-    }
-    for (std::size_t pivotIndex{0}; pivotIndex < nRows; ++pivotIndex)
-    {
-      // std::cout << "Pivot index " << pivotIndex << std::endl;
-      std::size_t maxIndex{augmentedMatrix.indexRowMax(pivotIndex, pivotIndex)};
-      if (maxIndex != pivotIndex)
-      {
-        augmentedMatrix.swapRows(pivotIndex, maxIndex);
-        // std::cout << "Swap rows " << pivotIndex << " and " << maxIndex << std::endl;
-        // std::cout << augmentedMatrix << std::endl;
-      }
-      T pivot{augmentedMatrix(pivotIndex, pivotIndex)};
-      if (approximatelyEqualAbsRel(pivot, 0.0))
-      {
-        throw std::runtime_error("Matrix is singular and cannot be inverted.");
-      }
-      auto pivotSpan = augmentedMatrix.row(pivotIndex);
-      // Normalize pivot in place
-      if (!approximatelyEqualAbsRel(pivot, 1.0))
-      {
-        for (auto &val : pivotSpan)
-          val /= pivot;
-        // std::cout << "Normalize row " << pivotIndex << " by pivot = " << pivot << "\n"
-        //           << augmentedMatrix << '\n';
-      }
-
-      // Eliminate other rows
-      for (std::size_t i{0}; i < nRows; ++i)
-      {
-        // Skip the pivot row
-        if (i == pivotIndex)
-          continue;
-
-        T factor = augmentedMatrix(i, pivotIndex); // no need to /pivot as pivot = 1.0 already
-        if (approximatelyEqualAbsRel(factor, 0.0)) // Skip value under or above the pilot that are 0.0
-          continue;
-
-        // std::cout << "Eliminate row " << i << " using pivot row " << pivotIndex
-        //           << " (factor = " << factor << ")\n";
-        auto targetSpan = augmentedMatrix.row(i);
-        for (std::size_t j = 0; j < pivotSpan.size(); ++j)
-        {
-          targetSpan[j] -= factor * pivotSpan[j];
-        }
-        // std::cout << augmentedMatrix << '\n';
-      }
-    }
-    augmentedMatrix.splitByColumn(nCols, testIdentity, inverseMatrix);
-    if (testIdentity == Matrix::identity())
-      return inverseMatrix;
-    else
-      throw std::runtime_error("Matrix inversion failed: result is not an identity matrix.");
-  }
-
-  // Bool function to get the characteristics of matrix
-  bool isDiagonal() const
-  {
-    for (std::size_t i = 0; i < nRows; ++i)
-    {
-      for (std::size_t j = 0; j < nCols; ++j)
-      {
-        if (i != j)
-        {
-          if ((*this)(i, j) != 0)
-          {
-            return false;
-          }
-        }
-      }
-    }
-    return true;
-  }
-
-  bool isUpperTriangular() const
-  {
-    for (std::size_t i = 0; i < nRows; ++i)
-    {
-      for (std::size_t j = 0; j < nCols; ++j)
-      {
-        if (i > j)
-        {
-          if ((*this)(i, j) != 0)
-          {
-            return false;
-          }
-        }
-      }
-    }
-    return true;
-  }
-
-  bool isLowerTriangular() const
-  {
-    for (std::size_t i = 0; i < nRows; ++i)
-    {
-      for (std::size_t j = 0; j < nCols; ++j)
-      {
-        if (i < j)
-        {
-          if ((*this)(i, j) != 0)
-          {
-            return false;
-          }
-        }
-      }
-    }
-    return true;
-  }
-
-  constexpr bool isSquare() const
-  {
-    return nRows == nCols;
-  }
-
-  bool isSymmetric() const
-  {
-    return ((*this) == this->transpose());
-  }
-
-  bool isSkewSymmetric() const
-  {
-    return (-(*this) == (this->transpose()));
-  }
-
-  bool isOrthogonal() const
-  {
-    if (this->isSquare())
-    {
-      return (this->inverse() == this->transpose());
-    }
-    return false;
-  }
-
-  // Resize function?
-  // EigenValue, EigenVector? Dyadic? Power Matrix? LU decomposition
-};
-
-//////////////////////////////////   END OF MATRIX CLASS   //////////////////////////////////
-
-template <typename T, std::size_t R1, std::size_t C1, std::size_t R2, std::size_t C2>
-Matrix<T, R1, (C1 + C2)> concatenatedMatrix(const Matrix<T, R1, C1> &A, const Matrix<T, R2, C2> &B)
-{
-  assert(R1 == R2 && "The number of rows of both matrices must match to create an concatenated matrix.\n");
-  Matrix<T, R1, (C1 + C2)> concatenatedMatrix{};
-  for (std::size_t i = 0; i < R1; ++i)
-    for (std::size_t j = 0; j < (C1 + C2); ++j)
-    {
-      if (j < C1)
-      {
-        assert(j < A.getCols() && "Error index exceeding matrix's size.\n");
-        concatenatedMatrix(i, j) = A(i, j);
-      }
-      else
-      {
-        assert((j - C1) < B.getCols() && "Error index exceeding matrix's size.\n");
-        concatenatedMatrix(i, j) = B(i, j - C1);
-      }
-    }
-  return concatenatedMatrix;
-}
-
-// Solve Ax = B by taking x = A.inverse()*B
-template <typename T, std::size_t R1, std::size_t C1>
-Matrix<T, R1, 1> solveLinearSystem(const Matrix<T, R1, C1> &A, const Matrix<T, R1, 1> &B)
-{
-  try
-  {
-    Matrix<T, R1, C1> inverseA{A.inverse()};
-    return inverseA * B;
-  }
-  catch (const std::exception &)
-  {
-    throw std::invalid_argument("A is not invertible.");
-  }
-}
-
-// LU Decomposition (to be implemented)
-
-// Matrix multiplication
-template <typename T, std::size_t R1, std::size_t C1, std::size_t R2, std::size_t C2>
-Matrix<T, R1, C2> operator*(const Matrix<T, R1, C1> &m1, const Matrix<T, R2, C2> &m2)
-{
-  assert(C1 == R2 && "Not suitable for matrix multiplication.");
-  Matrix<T, R1, C2> result{};
-  for (std::size_t i = 0; i < R1; ++i)
-    for (std::size_t j = 0; j < C2; ++j)
-      for (std::size_t k = 0; k < C1; ++k)
-        result(i, j) += m1(i, k) * m2(k, j);
-  return result;
-}
-
-// Orthogonal bool function
-template <typename T, std::size_t R1, std::size_t C1, std::size_t R2, std::size_t C2>
-bool arePairOrthogonal(const Matrix<T, R1, C1> &m1, const Matrix<T, R2, C2> &m2)
-{
-  if ((m1 != Matrix<T, R1, C1>::zero()) && (m2 != Matrix<T, R2, C2>::zero()))
-  {
-    return ((m1.transpose() * m2) == Matrix<T, R1, C2>::identity());
-  }
-  return false; // Both matrices must not be 0
-}
-
-// find the most 0 row to calculate det(A) faster
-template <typename T, std::size_t nRows, std::size_t nCols>
-std::size_t mostZeroRow(const Matrix<T, nRows, nCols> &m)
-{
-  std::array<int, nRows> exceed0{};
-  std::size_t index{0};
-  for (std::size_t i{0}; i < nRows; i++)
-  {
-    for (const auto &element : m.row(i))
-    {
-      if (approximatelyEqualAbsRel(element, 0.0))
-        ++exceed0[i];
-    }
-  }
-  for (std::size_t i{1}; i < nRows; i++)
-  {
-    if (exceed0[i] > exceed0[index])
-    {
-      index = i;
-    }
-  }
-  // Tim index chua gia tri max trong array exceed0
-  return index;
-}
-
-// Calculate trace(A)
-template <typename T, std::size_t nRows, std::size_t nCols>
-T trace(const Matrix<T, nRows, nCols> &m)
-{
-  static_assert(nRows == nCols, "Trace applies only to squared matrix");
-  T result{};
-  for (std::size_t i = 0; i < nRows; ++i)
-    result += m(i, i);
-  return result;
-}
-
-// Calculate det(A) using Laplace expansion
-// Though this algorithm is not efficient with huge matrices. Considering implementing LU decomposition insted...
-// template <typename T>
-// T det(const Matrix<T, 1, 1> &m)
-// {
-//   return m(0, 0);
-// }
-
-// // Base case: 2x2
-// template <typename T>
-// T det(const Matrix<T, 2, 2> &m)
-// {
-//   return m(0, 0) * m(1, 1) - m(0, 1) * m(1, 0);
-// }
-
-template <typename T, std::size_t nRows, std::size_t nCols>
-T det(const Matrix<T, nRows, nCols> &m)
-{
-  static_assert(nRows == nCols, "Determinant can only be computed for square matrices");
-
-  if constexpr (nRows == 1)
-    return m(0, 0);
-  else if constexpr (nRows == 2)
-    return m(0, 0) * m(1, 1) - m(0, 1) * m(1, 0);
-  else
-  {
-    T detSum{};
-    std::size_t rowNum{mostZeroRow(m)};
-    for (std::size_t j = 0; j < nCols; ++j)
-    {
-      T a = m(rowNum, j);
-      if (approximatelyEqualAbsRel(a, 0.0))
-        continue;
-      int sign = ((rowNum + j) % 2 == 0) ? 1 : -1; // (-1)^(row+col)
-      Matrix<T, nRows - 1, nCols - 1> sub = m.subMatrix(rowNum, j);
-      detSum += static_cast<T>(sign) * a * det(sub);
-    }
-    return detSum;
-  }
-}
-
-////////////////////////////////   MAIN   //////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
+///////////////////////////   TEST FUNCTION   //////////////////////////////
+////////////////////////////////////////////////////////////////////////////
 
 void testMatrixConstructors() {
-    std::cout << "=== Testing Matrix Constructors ===" << std::endl;
-    
-    // Default constructor
-    Matrix<double, 2, 3> m1;
-    std::cout << "Default constructor (2x3):\n" << m1 << std::endl;
-    
-    // Initializer list constructor
-    Matrix<int, 2, 3> m2{1, 2, 3, 4, 5, 6};
-    std::cout << "Initializer list constructor {1,2,3,4,5,6}:\n" << m2 << std::endl;
-    
-    // Copy constructor test
-    Matrix<int, 2, 3> m3 = m2;
-    std::cout << "Copy constructor:\n" << m3 << std::endl;
-    
-    std::cout << "Constructor tests passed!\n" << std::endl;
+  std::cout << "=== Testing Matrix Constructors ===" << std::endl;
+
+  // Default constructor
+  Matrix<double, 2, 3> m1;
+  std::cout << "Default constructor (2x3):\n" << m1 << std::endl;
+
+  // Initializer list constructor
+  Matrix<int, 2, 3> m2{1, 2, 3, 4, 5, 6};
+  std::cout << "Initializer list constructor {1,2,3,4,5,6}:\n"
+            << m2 << std::endl;
+
+  // Copy constructor test
+  Matrix<int, 2, 3> m3 = m2;
+  std::cout << "Copy constructor:\n" << m3 << std::endl;
+
+  std::cout << "Constructor tests passed!\n" << std::endl;
 }
 
 void testMatrixAccessors() {
-    std::cout << "=== Testing Matrix Accessors ===" << std::endl;
-    
-    Matrix<int, 3, 3> m{1, 2, 3, 4, 5, 6, 7, 8, 9};
-    std::cout << "Original matrix:\n" << m << std::endl;
-    
-    // Test operator() access
-    std::cout << "Element (0,0): " << m(0,0) << std::endl;
-    std::cout << "Element (1,2): " << m(1,2) << std::endl;
-    std::cout << "Element (2,1): " << m(2,1) << std::endl;
-    
-    // Test operator[] access
-    std::cout << "Element [0]: " << m[0] << std::endl;
-    std::cout << "Element [4]: " << m[4] << std::endl;
-    std::cout << "Element [8]: " << m[8] << std::endl;
-    
-    // Test modification
-    m(1,1) = 99;
-    m[0] = 88;
-    std::cout << "After modification m(1,1)=99, m[0]=88:\n" << m << std::endl;
-    
-    // Test getters
-    std::cout << "Rows: " << m.getRows() << ", Cols: " << m.getCols() << ", Length: " << m.length() << std::endl;
-    
-    std::cout << "Accessor tests passed!\n" << std::endl;
+  std::cout << "=== Testing Matrix Accessors ===" << std::endl;
+
+  Matrix<int, 3, 3> m{1, 2, 3, 4, 5, 6, 7, 8, 9};
+  std::cout << "Original matrix:\n" << m << std::endl;
+
+  // Test operator() access
+  std::cout << "Element (0,0): " << m(0, 0) << std::endl;
+  std::cout << "Element (1,2): " << m(1, 2) << std::endl;
+  std::cout << "Element (2,1): " << m(2, 1) << std::endl;
+
+  // Test operator[] access
+  std::cout << "Element [0]: " << m[0] << std::endl;
+  std::cout << "Element [4]: " << m[4] << std::endl;
+  std::cout << "Element [8]: " << m[8] << std::endl;
+
+  // Test modification
+  m(1, 1) = 99;
+  m[0] = 88;
+  std::cout << "After modification m(1,1)=99, m[0]=88:\n" << m << std::endl;
+
+  // Test getters
+  std::cout << "Rows: " << m.getRows() << ", Cols: " << m.getCols()
+            << ", Length: " << m.length() << std::endl;
+
+  std::cout << "Accessor tests passed!\n" << std::endl;
 }
 
 void testMatrixStaticMethods() {
-    std::cout << "=== Testing Static Matrix Methods ===" << std::endl;
-    
-    // Zero matrix
-    auto zero = Matrix<double, 3, 3>::zero();
-    std::cout << "Zero matrix (3x3):\n" << zero << std::endl;
-    
-    // Ones matrix
-    auto ones = Matrix<int, 2, 4>::ones();
-    std::cout << "Ones matrix (2x4):\n" << ones << std::endl;
-    
-    // Identity matrix
-    auto identity = Matrix<double, 4, 4>::identity();
-    std::cout << "Identity matrix (4x4):\n" << identity << std::endl;
-    
-    // Test reset methods
-    Matrix<int, 2, 2> m{1, 2, 3, 4};
-    std::cout << "Before reset:\n" << m << std::endl;
-    
-    m.resetZero();
-    std::cout << "After resetZero():\n" << m << std::endl;
-    
-    m.resetOnes();
-    std::cout << "After resetOnes():\n" << m << std::endl;
-    
-    m.resetIdentity();
-    std::cout << "After resetIdentity():\n" << m << std::endl;
-    
-    std::cout << "Static methods tests passed!\n" << std::endl;
+  std::cout << "=== Testing Static Matrix Methods ===" << std::endl;
+
+  // Zero matrix
+  auto zero = Matrix<double, 3, 3>::zero();
+  std::cout << "Zero matrix (3x3):\n" << zero << std::endl;
+
+  // Ones matrix
+  auto ones = Matrix<int, 2, 4>::ones();
+  std::cout << "Ones matrix (2x4):\n" << ones << std::endl;
+
+  // Identity matrix
+  auto identity = Matrix<double, 4, 4>::identity();
+  std::cout << "Identity matrix (4x4):\n" << identity << std::endl;
+
+  // Test reset methods
+  Matrix<int, 2, 2> m{1, 2, 3, 4};
+  std::cout << "Before reset:\n" << m << std::endl;
+
+  m.resetZero();
+  std::cout << "After resetZero():\n" << m << std::endl;
+
+  m.resetOnes();
+  std::cout << "After resetOnes():\n" << m << std::endl;
+
+  m.resetIdentity();
+  std::cout << "After resetIdentity():\n" << m << std::endl;
+
+  std::cout << "Static methods tests passed!\n" << std::endl;
 }
 
 void testMatrixArithmetic() {
-    std::cout << "=== Testing Matrix Arithmetic ===" << std::endl;
-    
-    Matrix<double, 2, 3> A{1.0, 2.0, 3.0, 4.0, 5.0, 6.0};
-    Matrix<double, 2, 3> B{2.0, 1.0, 4.0, 3.0, 6.0, 5.0};
-    
-    std::cout << "Matrix A:\n" << A << std::endl;
-    std::cout << "Matrix B:\n" << B << std::endl;
-    
-    // Addition
-    auto C = A + B;
-    std::cout << "A + B:\n" << C << std::endl;
-    
-    // Subtraction
-    auto D = A - B;
-    std::cout << "A - B:\n" << D << std::endl;
-    
-    // Scalar multiplication
-    auto E = 2.5 * A;
-    std::cout << "2.5 * A:\n" << E << std::endl;
-    
-    auto F = A * 3.0;
-    std::cout << "A * 3.0:\n" << F << std::endl;
-    
-    // Unary minus
-    auto G = -A;
-    std::cout << "-A:\n" << G << std::endl;
-    
-    // Equality
-    auto A_copy = A;
-    std::cout << "A == A_copy: " << (A == A_copy) << std::endl;
-    std::cout << "A == B: " << (A == B) << std::endl;
-    std::cout << "A != B: " << (A != B) << std::endl;
-    
-    std::cout << "Arithmetic tests passed!\n" << std::endl;
+  std::cout << "=== Testing Matrix Arithmetic ===" << std::endl;
+
+  Matrix<double, 2, 3> A{1.0, 2.0, 3.0, 4.0, 5.0, 6.0};
+  Matrix<double, 2, 3> B{2.0, 1.0, 4.0, 3.0, 6.0, 5.0};
+
+  std::cout << "Matrix A:\n" << A << std::endl;
+  std::cout << "Matrix B:\n" << B << std::endl;
+
+  // Addition
+  auto C = A + B;
+  std::cout << "A + B:\n" << C << std::endl;
+
+  // Subtraction
+  auto D = A - B;
+  std::cout << "A - B:\n" << D << std::endl;
+
+  // Scalar multiplication
+  auto E = 2.5 * A;
+  std::cout << "2.5 * A:\n" << E << std::endl;
+
+  auto F = A * 3.0;
+  std::cout << "A * 3.0:\n" << F << std::endl;
+
+  // Unary minus
+  auto G = -A;
+  std::cout << "-A:\n" << G << std::endl;
+
+  // Equality
+  auto A_copy = A;
+  std::cout << "A == A_copy: " << (A == A_copy) << std::endl;
+  std::cout << "A == B: " << (A == B) << std::endl;
+  std::cout << "A != B: " << (A != B) << std::endl;
+
+  std::cout << "Arithmetic tests passed!\n" << std::endl;
 }
 
 void testMatrixMultiplication() {
-    std::cout << "=== Testing Matrix Multiplication ===" << std::endl;
-    
-    Matrix<double, 2, 3> A{1, 2, 3, 4, 5, 6};
-    Matrix<double, 3, 2> B{1, 2, 3, 4, 5, 6};
-    
-    std::cout << "Matrix A (2x3):\n" << A << std::endl;
-    std::cout << "Matrix B (3x2):\n" << B << std::endl;
-    
-    auto C = A * B;
-    std::cout << "A * B (2x2):\n" << C << std::endl;
-    
-    auto D = B * A;
-    std::cout << "B * A (3x3):\n" << D << std::endl;
-    
-    // Square matrix multiplication
-    Matrix<int, 3, 3> E{1, 2, 3, 0, 1, 4, 5, 6, 0};
-    Matrix<int, 3, 3> F{1, 0, 0, 0, 1, 0, 0, 0, 1}; // Identity
-    
-    std::cout << "Matrix E:\n" << E << std::endl;
-    std::cout << "Matrix F (Identity):\n" << F << std::endl;
-    
-    auto G = E * F;
-    std::cout << "E * Identity:\n" << G << std::endl;
-    
-    std::cout << "Matrix multiplication tests passed!\n" << std::endl;
+  std::cout << "=== Testing Matrix Multiplication ===" << std::endl;
+
+  Matrix<double, 2, 3> A{1, 2, 3, 4, 5, 6};
+  Matrix<double, 3, 2> B{1, 2, 3, 4, 5, 6};
+
+  std::cout << "Matrix A (2x3):\n" << A << std::endl;
+  std::cout << "Matrix B (3x2):\n" << B << std::endl;
+
+  auto C = A * B;
+  std::cout << "A * B (2x2):\n" << C << std::endl;
+
+  auto D = B * A;
+  std::cout << "B * A (3x3):\n" << D << std::endl;
+
+  // Square matrix multiplication
+  Matrix<int, 3, 3> E{1, 2, 3, 0, 1, 4, 5, 6, 0};
+  Matrix<int, 3, 3> F{1, 0, 0, 0, 1, 0, 0, 0, 1}; // Identity
+
+  std::cout << "Matrix E:\n" << E << std::endl;
+  std::cout << "Matrix F (Identity):\n" << F << std::endl;
+
+  auto G = E * F;
+  std::cout << "E * Identity:\n" << G << std::endl;
+
+  std::cout << "Matrix multiplication tests passed!\n" << std::endl;
 }
 
 void testMatrixProperties() {
-    std::cout << "=== Testing Matrix Properties ===" << std::endl;
-    
-    // Diagonal matrix
-    Matrix<int, 3, 3> diagonal{5, 0, 0, 0, 3, 0, 0, 0, 7};
-    std::cout << "Diagonal matrix:\n" << diagonal << std::endl;
-    std::cout << "isDiagonal(): " << diagonal.isDiagonal() << std::endl;
-    std::cout << "isUpperTriangular(): " << diagonal.isUpperTriangular() << std::endl;
-    std::cout << "isLowerTriangular(): " << diagonal.isLowerTriangular() << std::endl;
-    std::cout << "isSquare(): " << diagonal.isSquare() << std::endl;
-    
-    // Upper triangular
-    Matrix<int, 3, 3> upper{1, 2, 3, 0, 4, 5, 0, 0, 6};
-    std::cout << "\nUpper triangular matrix:\n" << upper << std::endl;
-    std::cout << "isUpperTriangular(): " << upper.isUpperTriangular() << std::endl;
-    std::cout << "isLowerTriangular(): " << upper.isLowerTriangular() << std::endl;
-    
-    // Symmetric matrix
-    Matrix<double, 3, 3> symmetric{1, 2, 3, 2, 4, 5, 3, 5, 6};
-    std::cout << "\nSymmetric matrix:\n" << symmetric << std::endl;
-    std::cout << "isSymmetric(): " << symmetric.isSymmetric() << std::endl;
-    
-    // Non-square matrix
-    Matrix<int, 2, 3> nonsquare{1, 2, 3, 4, 5, 6};
-    std::cout << "\nNon-square matrix (2x3):\n" << nonsquare << std::endl;
-    std::cout << "isSquare(): " << nonsquare.isSquare() << std::endl;
-    
-    std::cout << "Matrix properties tests passed!\n" << std::endl;
+  std::cout << "=== Testing Matrix Properties ===" << std::endl;
+
+  // Diagonal matrix
+  Matrix<int, 3, 3> diagonal{5, 0, 0, 0, 3, 0, 0, 0, 7};
+  std::cout << "Diagonal matrix:\n" << diagonal << std::endl;
+  std::cout << "isDiagonal(): " << diagonal.isDiagonal() << std::endl;
+  std::cout << "isUpperTriangular(): " << diagonal.isUpperTriangular()
+            << std::endl;
+  std::cout << "isLowerTriangular(): " << diagonal.isLowerTriangular()
+            << std::endl;
+  std::cout << "isSquare(): " << diagonal.isSquare() << std::endl;
+
+  // Upper triangular
+  Matrix<int, 3, 3> upper{1, 2, 3, 0, 4, 5, 0, 0, 6};
+  std::cout << "\nUpper triangular matrix:\n" << upper << std::endl;
+  std::cout << "isUpperTriangular(): " << upper.isUpperTriangular()
+            << std::endl;
+  std::cout << "isLowerTriangular(): " << upper.isLowerTriangular()
+            << std::endl;
+
+  // Symmetric matrix
+  Matrix<double, 3, 3> symmetric{1, 2, 3, 2, 4, 5, 3, 5, 6};
+  std::cout << "\nSymmetric matrix:\n" << symmetric << std::endl;
+  std::cout << "isSymmetric(): " << symmetric.isSymmetric() << std::endl;
+
+  // Non-square matrix
+  Matrix<int, 2, 3> nonsquare{1, 2, 3, 4, 5, 6};
+  std::cout << "\nNon-square matrix (2x3):\n" << nonsquare << std::endl;
+  std::cout << "isSquare(): " << nonsquare.isSquare() << std::endl;
+
+  std::cout << "Matrix properties tests passed!\n" << std::endl;
 }
 
 void testDeterminantAndTrace() {
-    std::cout << "=== Testing Determinant and Trace ===" << std::endl;
-    
-    // 1x1 matrix
-    Matrix<double, 1, 1> m1{5.0};
-    std::cout << "1x1 matrix: " << m1(0,0) << std::endl;
-    std::cout << "det(1x1): " << det(m1) << std::endl;
-    std::cout << "trace(1x1): " << trace(m1) << std::endl;
-    
-    // 2x2 matrix
-    Matrix<double, 2, 2> m2{1, 2, 3, 4};
-    std::cout << "\n2x2 matrix:\n" << m2 << std::endl;
-    std::cout << "det(2x2): " << det(m2) << std::endl;
-    std::cout << "trace(2x2): " << trace(m2) << std::endl;
-    
-    // 3x3 matrix
-    Matrix<double, 3, 3> m3{1, 2, 3, 0, 1, 4, 5, 6, 0};
-    std::cout << "\n3x3 matrix:\n" << m3 << std::endl;
-    std::cout << "det(3x3): " << det(m3) << std::endl;
-    std::cout << "trace(3x3): " << trace(m3) << std::endl;
-    
-    // Identity matrix
-    auto identity = Matrix<double, 3, 3>::identity();
-    std::cout << "\n3x3 Identity:\n" << identity << std::endl;
-    std::cout << "det(Identity): " << det(identity) << std::endl;
-    std::cout << "trace(Identity): " << trace(identity) << std::endl;
-    
-    std::cout << "Determinant and trace tests passed!\n" << std::endl;
+  std::cout << "=== Testing Determinant and Trace ===" << std::endl;
+
+  // 1x1 matrix
+  Matrix<double, 1, 1> m1{5.0};
+  std::cout << "1x1 matrix: " << m1(0, 0) << std::endl;
+  std::cout << "det(1x1): " << det(m1) << std::endl;
+  std::cout << "trace(1x1): " << trace(m1) << std::endl;
+
+  // 2x2 matrix
+  Matrix<double, 2, 2> m2{1, 2, 3, 4};
+  std::cout << "\n2x2 matrix:\n" << m2 << std::endl;
+  std::cout << "det(2x2): " << det(m2) << std::endl;
+  std::cout << "trace(2x2): " << trace(m2) << std::endl;
+
+  // 3x3 matrix
+  Matrix<double, 3, 3> m3{1, 2, 3, 0, 1, 4, 5, 6, 0};
+  std::cout << "\n3x3 matrix:\n" << m3 << std::endl;
+  std::cout << "det(3x3): " << det(m3) << std::endl;
+  std::cout << "trace(3x3): " << trace(m3) << std::endl;
+
+  // Identity matrix
+  auto identity = Matrix<double, 3, 3>::identity();
+  std::cout << "\n3x3 Identity:\n" << identity << std::endl;
+  std::cout << "det(Identity): " << det(identity) << std::endl;
+  std::cout << "trace(Identity): " << trace(identity) << std::endl;
+
+  std::cout << "Determinant and trace tests passed!\n" << std::endl;
 }
 
 void testMatrixInverse() {
-    std::cout << "=== Testing Matrix Inverse ===" << std::endl;
-    
-    try {
-        // 2x2 invertible matrix
-        Matrix<double, 2, 2> m2{1, 2, 3, 5};
-        std::cout << "Original 2x2 matrix:\n" << m2 << std::endl;
-        std::cout << "det(m2): " << det(m2) << std::endl;
-        
-        auto inv2 = m2.inverse();
-        std::cout << "Inverse:\n" << inv2 << std::endl;
-        
-        auto product2 = m2 * inv2;
-        std::cout << "Original * Inverse:\n" << product2 << std::endl;
-        
-    } catch (const std::exception& e) {
-        std::cout << "Caught exception: " << e.what() << std::endl;
-    }
-    
-    // Test singular matrix (should throw)
-    try {
-        Matrix<double, 2, 2> singular{1, 2, 2, 4};
-        std::cout << "\nTrying to invert singular matrix:\n" << singular << std::endl;
-        auto inv_singular = singular.inverse();
-    } catch (const std::exception& e) {
-        std::cout << "✓ Caught expected exception: " << e.what() << std::endl;
-    }
-    
-    std::cout << "Matrix inverse tests passed!\n" << std::endl;
+  std::cout << "=== Testing Matrix Inverse ===" << std::endl;
+
+  try {
+    // 2x2 invertible matrix
+    Matrix<double, 2, 2> m2{1, 2, 3, 5};
+    std::cout << "Original 2x2 matrix:\n" << m2 << std::endl;
+    std::cout << "det(m2): " << det(m2) << std::endl;
+
+    auto inv2 = m2.inverse();
+    std::cout << "Inverse:\n" << inv2 << std::endl;
+
+    auto product2 = m2 * inv2;
+    std::cout << "Original * Inverse:\n" << product2 << std::endl;
+
+  } catch (const std::exception &e) {
+    std::cout << "Caught exception: " << e.what() << std::endl;
+  }
+
+  // Test singular matrix (should throw)
+  try {
+    Matrix<double, 2, 2> singular{1, 2, 2, 4};
+    std::cout << "\nTrying to invert singular matrix:\n"
+              << singular << std::endl;
+    auto inv_singular = singular.inverse();
+  } catch (const std::exception &e) {
+    std::cout << "✓ Caught expected exception: " << e.what() << std::endl;
+  }
+
+  std::cout << "Matrix inverse tests passed!\n" << std::endl;
 }
 
 void testRowColumnOperations() {
-    std::cout << "=== Testing Row/Column Operations ===" << std::endl;
-    
-    Matrix<int, 3, 4> m{1, 2, 3, 4,
-                        5, 6, 7, 8,
-                        9, 10, 11, 12};
-    std::cout << "Original matrix:\n" << m << std::endl;
-    
-    // Test row access
-    auto row1 = m.row(1);
-    std::cout << "Row 1: ";
-    for (const auto& val : row1) {
-        std::cout << val << " ";
-    }
-    std::cout << std::endl;
-    
-    // Test column access
-    auto col2 = m.col(2);
-    std::cout << "Column 2: ";
-    for (const auto& val : col2) {
-        std::cout << val.get() << " ";
-    }
-    std::cout << std::endl;
-    
-    // Test row swapping
-    Matrix<int, 3, 3> swap_test{1, 2, 3, 4, 5, 6, 7, 8, 9};
-    std::cout << "Before swapping rows 0 and 2:\n" << swap_test << std::endl;
-    swap_test.swapRows(0, 2);
-    std::cout << "After swapping rows 0 and 2:\n" << swap_test << std::endl;
-    
-    // Test transpose
-    Matrix<double, 2, 3> transpose_test{1, 2, 3, 4, 5, 6};
-    std::cout << "Original (2x3):\n" << transpose_test << std::endl;
-    auto transposed = transpose_test.transpose();
-    std::cout << "Transposed (3x2):\n" << transposed << std::endl;
-    
-    std::cout << "Row/Column operations tests passed!\n" << std::endl;
+  std::cout << "=== Testing Row/Column Operations ===" << std::endl;
+
+  Matrix<int, 3, 4> m{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
+  std::cout << "Original matrix:\n" << m << std::endl;
+
+  // Test row access
+  auto row1 = m.row(1);
+  std::cout << "Row 1: ";
+  for (const auto &val : row1) {
+    std::cout << val << " ";
+  }
+  std::cout << std::endl;
+
+  // Test column access
+  auto col2 = m.col(2);
+  std::cout << "Column 2: ";
+  for (const auto &val : col2) {
+    std::cout << val.get() << " ";
+  }
+  std::cout << std::endl;
+
+  // Test row swapping
+  Matrix<int, 3, 3> swap_test{1, 2, 3, 4, 5, 6, 7, 8, 9};
+  std::cout << "Before swapping rows 0 and 2:\n" << swap_test << std::endl;
+  swap_test.swapRows(0, 2);
+  std::cout << "After swapping rows 0 and 2:\n" << swap_test << std::endl;
+
+  // Test transpose
+  Matrix<double, 2, 3> transpose_test{1, 2, 3, 4, 5, 6};
+  std::cout << "Original (2x3):\n" << transpose_test << std::endl;
+  auto transposed = transpose_test.transpose();
+  std::cout << "Transposed (3x2):\n" << transposed << std::endl;
+
+  std::cout << "Row/Column operations tests passed!\n" << std::endl;
 }
 
 void testConcatenationAndSplit() {
-    std::cout << "=== Testing Concatenation and Split ===" << std::endl;
-    
-    Matrix<int, 2, 2> A{1, 2, 3, 4};
-    Matrix<int, 2, 3> B{5, 6, 7, 8, 9, 10};
-    
-    std::cout << "Matrix A (2x2):\n" << A << std::endl;
-    std::cout << "Matrix B (2x3):\n" << B << std::endl;
-    
-    auto concat = concatenatedMatrix(A, B);
-    std::cout << "Concatenated matrix A|B (2x5):\n" << concat << std::endl;
-    
-    // Test splitByColumn
-    Matrix<int, 2, 2> split_A;
-    Matrix<int, 2, 3> split_B;
-    concat.splitByColumn(2, split_A, split_B);
-    
-    std::cout << "Split back - first part:\n" << split_A << std::endl;
-    std::cout << "Split back - second part:\n" << split_B << std::endl;
-    
-    std::cout << "Concatenation and split tests passed!\n" << std::endl;
+  std::cout << "=== Testing Concatenation and Split ===" << std::endl;
+
+  Matrix<int, 2, 2> A{1, 2, 3, 4};
+  Matrix<int, 2, 3> B{5, 6, 7, 8, 9, 10};
+
+  std::cout << "Matrix A (2x2):\n" << A << std::endl;
+  std::cout << "Matrix B (2x3):\n" << B << std::endl;
+
+  auto concat = concatenatedMatrix(A, B);
+  std::cout << "Concatenated matrix A|B (2x5):\n" << concat << std::endl;
+
+  // Test splitByColumn
+  Matrix<int, 2, 2> split_A;
+  Matrix<int, 2, 3> split_B;
+  concat.splitByColumn(2, split_A, split_B);
+
+  std::cout << "Split back - first part:\n" << split_A << std::endl;
+  std::cout << "Split back - second part:\n" << split_B << std::endl;
+
+  std::cout << "Concatenation and split tests passed!\n" << std::endl;
 }
 
 void testLinearSystem() {
-    std::cout << "=== Testing Linear System Solver ===" << std::endl;
-    
-    try {
-        // Solve Ax = b
-        Matrix<double, 3, 3> A{2, 1, 1, 1, 0, 1, 0, 3, 1};
-        Matrix<double, 3, 1> b{4, 2, 6};
-        
-        std::cout << "Coefficient matrix A:\n" << A << std::endl;
-        std::cout << "Right-hand side b:\n" << b << std::endl;
-        
-        auto x = solveLinearSystem(A, b);
-        std::cout << "Solution x:\n" << x << std::endl;
-        
-        // Verify: Ax should equal b
-        auto verification = A * x;
-        std::cout << "Verification A*x:\n" << verification << std::endl;
-        
-    } catch (const std::exception& e) {
-        std::cout << "Caught exception: " << e.what() << std::endl;
-    }
-    
-    std::cout << "Linear system tests passed!\n" << std::endl;
+  std::cout << "=== Testing Linear System Solver ===" << std::endl;
+
+  try {
+    // Solve Ax = b
+    Matrix<double, 3, 3> A{2, 1, 1, 1, 0, 1, 0, 3, 1};
+    Matrix<double, 3, 1> b{4, 2, 6};
+
+    std::cout << "Coefficient matrix A:\n" << A << std::endl;
+    std::cout << "Right-hand side b:\n" << b << std::endl;
+
+    auto x = solveLinearSystem(A, b);
+    std::cout << "Solution x:\n" << x << std::endl;
+
+    // Verify: Ax should equal b
+    auto verification = A * x;
+    std::cout << "Verification A*x:\n" << verification << std::endl;
+
+  } catch (const std::exception &e) {
+    std::cout << "Caught exception: " << e.what() << std::endl;
+  }
+
+  std::cout << "Linear system tests passed!\n" << std::endl;
 }
 
-int main()
-{
-    std::cout << "=== MATRIX CLASS COMPREHENSIVE TEST SUITE ===" << std::endl;
-    std::cout << "=============================================" << std::endl << std::endl;
-    
-    // Run all test cases
-    testMatrixConstructors();
-    testMatrixAccessors();
-    testMatrixStaticMethods();
-    testMatrixArithmetic();
-    testMatrixMultiplication();
-    testMatrixProperties();
-    testDeterminantAndTrace();
-    testMatrixInverse();
-    testRowColumnOperations();
-    testConcatenationAndSplit();
-    testLinearSystem();
-    
-    std::cout << "\n=== ORIGINAL TESTS (from previous main) ===" << std::endl;
-    
-    // Your original tests
-    Matrix<double, 3, 3> A{-3, 2, -1, 6, -6, 7, 3, -4, 4};
-    Matrix<double, 3, 1> B{-1, -7, -6};
-    
-    std::cout << "Original problem: Solve Ax = B" << std::endl;
-    std::cout << "A:\n" << A << std::endl;
-    std::cout << "B:\n" << B << std::endl;
-    
-    try {
-        Matrix<double, 3, 1> X{solveLinearSystem(A, B)};
-        std::cout << "Solution X:\n" << X << std::endl;
-        
-        // Verify solution
-        auto verification = A * X;
-        std::cout << "Verification A*X:\n" << verification << std::endl;
-        
-        std::cout << "A inverse:\n" << A.inverse() << std::endl;
-        
-    } catch (const std::exception& e) {
-        std::cout << "Error: " << e.what() << std::endl;
-    }
-    
-    // Test various determinants
-    std::cout << "\nDeterminant tests:" << std::endl;
-    const Matrix<double, 1, 1> H1{6};
-    const Matrix<double, 2, 2> H2{6, 3, 2, 4};
-    const Matrix<double, 3, 3> D{2.0, 1.0, 1.0, 1.0, 0.0, 1.0, 0.0, 3.0, 1.0};
-    
-    std::cout << "det(H1): " << det(H1) << std::endl;
-    std::cout << "det(H2): " << det(H2) << std::endl;
-    std::cout << "det(D): " << det(D) << std::endl;
-    
-    std::cout << "\n=== ALL TESTS COMPLETED SUCCESSFULLY! ===" << std::endl;
-    
-    return 0;
+void testVectorIntegration() {
+  std::cout << "=== Testing Matrix-Vector Integration ===" << std::endl;
+
+  Matrix<double, 3, 3> A{2, 1, 1, 1, 0, 1, 0, 3, 1};
+  Vector<double> b{4, 2, 6};
+
+  std::cout << "Matrix A:\n" << A << std::endl;
+  std::cout << "Vector b: " << b << std::endl;
+
+  auto x = solveLinearSystem2(A, b);
+  std::cout << "Solution x:\n" << x << std::endl;
+
+  // Convert Vector back to Matrix for multiplication
+  Matrix<double, 3, 1> xMatrix{x};
+  auto verification = A * xMatrix;
+  std::cout << "Verification A*x:\n" << verification << std::endl;
+}
+////////////////////////////////////////////////////////////////////////////
+////////////////////////////////   MAIN   //////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
+
+int main() {
+  std::cout << "=== MATRIX CLASS COMPREHENSIVE TEST SUITE ===" << std::endl;
+  std::cout << "=============================================" << std::endl
+            << std::endl;
+
+  // Run all test cases
+  testMatrixConstructors();
+  testMatrixAccessors();
+  testMatrixStaticMethods();
+  testMatrixArithmetic();
+  testMatrixMultiplication();
+  testMatrixProperties();
+  testDeterminantAndTrace();
+  testMatrixInverse();
+  testRowColumnOperations();
+  testConcatenationAndSplit();
+  testLinearSystem();
+  testVectorIntegration();
+
+  std::cout << "\n=== ORIGINAL TESTS (from previous main) ===" << std::endl;
+
+  // Your original tests
+  Matrix<double, 3, 3> A{-3, 2, -1, 6, -6, 7, 3, -4, 4};
+  Matrix<double, 3, 1> B{-1, -7, -6};
+
+  std::cout << "Original problem: Solve Ax = B" << std::endl;
+  std::cout << "A:\n" << A << std::endl;
+  std::cout << "B:\n" << B << std::endl;
+
+  try {
+    Matrix<double, 3, 1> X{solveLinearSystem(A, B)};
+    std::cout << "Solution X:\n" << X << std::endl;
+
+    // Verify solution
+    auto verification = A * X;
+    std::cout << "Verification A*X:\n" << verification << std::endl;
+
+    std::cout << "A inverse:\n" << A.inverse() << std::endl;
+
+  } catch (const std::exception &e) {
+    std::cout << "Error: " << e.what() << std::endl;
+  }
+
+  // Test various determinants
+  std::cout << "\nDeterminant tests:" << std::endl;
+  const Matrix<double, 1, 1> H1{6};
+  const Matrix<double, 2, 2> H2{6, 3, 2, 4};
+  const Matrix<double, 3, 3> D{2.0, 1.0, 1.0, 1.0, 0.0, 1.0, 0.0, 3.0, 1.0};
+
+  std::cout << "det(H1): " << det(H1) << std::endl;
+  std::cout << "det(H2): " << det(H2) << std::endl;
+  std::cout << "det(D): " << det(D) << std::endl;
+
+  std::cout << "\n=== ALL TESTS COMPLETED SUCCESSFULLY! ===" << std::endl;
+
+  std::cout << "=== VECTOR CLASS TEST SUITE ===" << std::endl;
+  std::cout << std::endl;
+
+  // Test 1: Constructors
+  std::cout << "1. Testing Constructors:" << std::endl;
+  Vector<int> v1;                // Default constructor
+  Vector<int> v2(5);             // Size constructor (5 zeros)
+  Vector<int> v3{1, 2, 3, 4, 5}; // Initializer list
+
+  std::cout << "v1 (default): " << v1 << " (size: " << v1.size() << ")"
+            << std::endl;
+  std::cout << "v2(5): " << v2 << " (size: " << v2.size() << ")" << std::endl;
+  std::cout << "v3{1,2,3,4,5}: " << v3 << " (size: " << v3.size() << ")"
+            << std::endl;
+  std::cout << std::endl;
+
+  // Test 2: Indexing
+  std::cout << "2. Testing Indexing:" << std::endl;
+  Vector<double> v4{10.5, 20.3, 30.7, 40.1};
+  std::cout << "v4: " << v4 << std::endl;
+  std::cout << "v4[0] = " << v4[0] << std::endl;
+  std::cout << "v4[2] = " << v4[2] << std::endl;
+
+  // Modify element
+  v4[1] = 99.9;
+  std::cout << "After v4[1] = 99.9: " << v4 << std::endl;
+
+  // Test signed indexing
+  Index idx = 3;
+  std::cout << "Using Index idx=3: v4[idx] = " << v4[idx] << std::endl;
+  std::cout << std::endl;
+
+  // Test 3: Vector Operations
+  std::cout << "3. Testing Vector Operations:" << std::endl;
+  Vector<double> va{1.0, 2.0, 3.0};
+  Vector<double> vb{4.0, 5.0, 6.0};
+
+  std::cout << "va = " << va << std::endl;
+  std::cout << "vb = " << vb << std::endl;
+
+  auto vc = va + vb;
+  std::cout << "va + vb = " << vc << std::endl;
+
+  auto vd = vb - va;
+  std::cout << "vb - va = " << vd << std::endl;
+
+  auto ve = 2.5 * va;
+  std::cout << "2.5 * va = " << ve << std::endl;
+
+  auto vf = va * 3.0;
+  std::cout << "va * 3.0 = " << vf << std::endl;
+
+  auto vg = -va;
+  std::cout << "-va = " << vg << std::endl;
+  std::cout << std::endl;
+
+  // Test 4: Vector Math
+  std::cout << "4. Testing Vector Math:" << std::endl;
+  Vector<double> u1{3.0, 4.0, 0.0};
+  Vector<double> u2{1.0, 0.0, 0.0};
+
+  std::cout << "u1 = " << u1 << std::endl;
+  std::cout << "u2 = " << u2 << std::endl;
+
+  double dot = dotProduct(u1, u2);
+  std::cout << "Dot product u1·u2 = " << dot << std::endl;
+
+  auto cross = crossProduct(u1, u2);
+  std::cout << "Cross product u1×u2 = " << cross << std::endl;
+
+  double mag1 = magnitude(u1);
+  double mag2 = magnitude(u2);
+  std::cout << "Magnitude |u1| = " << mag1 << std::endl;
+  std::cout << "Magnitude |u2| = " << mag2 << std::endl;
+
+  auto unit1 = normalize(u1);
+  auto unit2 = normalize(u2);
+  std::cout << "Unit vector of u1 = " << unit1 << std::endl;
+  std::cout << "Unit vector of u2 = " << unit2 << std::endl;
+  std::cout << "Magnitude of unit u1 = " << magnitude(unit1) << std::endl;
+  std::cout << std::endl;
+
+  // Test 4a: Testing CrossProduct2 (Levi-Civita Method)
+  std::cout << "4a. Testing CrossProduct2 (Levi-Civita Method):" << std::endl;
+  auto cross2 = crossProduct2(u1, u2);
+  std::cout << "Cross product2 u1×u2 = " << cross2 << std::endl;
+  std::cout << "crossProduct == crossProduct2: "
+            << (cross == cross2 ? "✓ SAME" : "✗ DIFFERENT") << std::endl;
+  std::cout << std::endl;
+
+  // Test 5: Resize and Push Back
+  std::cout << "5. Testing Resize and Push Back:" << std::endl;
+  Vector<int> vr{10, 20, 30};
+  std::cout << "Original vr: " << vr << " (size: " << vr.size() << ")"
+            << std::endl;
+
+  vr.resize(6);
+  std::cout << "After resize(6): " << vr << " (size: " << vr.size() << ")"
+            << std::endl;
+
+  vr.resize(8, 77);
+  std::cout << "After resize(8, 77): " << vr << " (size: " << vr.size() << ")"
+            << std::endl;
+
+  vr.push_back(100);
+  std::cout << "After push_back(100): " << vr << " (size: " << vr.size() << ")"
+            << std::endl;
+  std::cout << std::endl;
+
+  // Test 6: Edge Cases and Error Handling
+  std::cout << "6. Testing Edge Cases:" << std::endl;
+
+  try {
+    Vector<int> v_small{1, 2};
+    Vector<int> v_big{1, 2, 3, 4};
+    std::cout << "Trying to add vectors of different sizes..." << std::endl;
+    auto result = v_small + v_big;
+  } catch (const std::exception &e) {
+    std::cout << "✓ Caught expected exception: " << e.what() << std::endl;
+  }
+
+  try {
+    Vector<double> zero_vec{0.0, 0.0, 0.0};
+    std::cout << "Trying to normalize zero vector..." << std::endl;
+    auto unit = normalize(zero_vec);
+  } catch (const std::exception &e) {
+    std::cout << "✓ Caught expected exception: " << e.what() << std::endl;
+  }
+
+  try {
+    Vector<int> v2d_1{1, 2};
+    Vector<int> v2d_2{3, 4};
+    std::cout << "Trying cross product on 2D vectors..." << std::endl;
+    auto cross_2d = crossProduct(v2d_1, v2d_2);
+  } catch (const std::exception &e) {
+    std::cout << "✓ Caught expected exception: " << e.what() << std::endl;
+  }
+
+  std::cout << std::endl;
+  std::cout << "=== ALL TESTS COMPLETED SUCCESSFULLY! ===" << std::endl;
+
+  // Test 7: Projection
+  std::cout << "7. Testing Vector Projection:" << std::endl;
+
+  Vector<double> proj_a{3.0, 4.0, 0.0}; // Vector a
+  Vector<double> proj_b{1.0, 0.0, 0.0}; // Unit vector along x-axis
+  Vector<double> proj_c{2.0, 2.0, 0.0}; // 45-degree vector
+
+  std::cout << "Vector proj_a = " << proj_a << std::endl;
+  std::cout << "Vector proj_b = " << proj_b << std::endl;
+  std::cout << "Vector proj_c = " << proj_c << std::endl;
+
+  // Vector projection
+  auto vector_proj_ab = proj_a.projection(proj_b);
+  auto vector_proj_ac = proj_a.projection(proj_c);
+  std::cout << "Projection of proj_a onto proj_b: " << vector_proj_ab
+            << std::endl;
+  std::cout << "Projection of proj_a onto proj_c: " << vector_proj_ac
+            << std::endl;
+
+  std::cout << std::endl;
+
+  // Test 8: Angle Calculation
+  std::cout << "8. Testing Angle Calculation:" << std::endl;
+
+  Vector<double> angle_v1{1.0, 0.0, 0.0}; // Unit vector along x-axis
+  Vector<double> angle_v2{0.0, 1.0, 0.0}; // Unit vector along y-axis
+  Vector<double> angle_v3{1.0, 1.0, 0.0}; // 45-degree vector
+
+  std::cout << "angle_v1 = " << angle_v1 << std::endl;
+  std::cout << "angle_v2 = " << angle_v2 << std::endl;
+  std::cout << "angle_v3 = " << angle_v3 << std::endl;
+
+  // Test 90 degree angle
+  double angle12_rad = angleRad(angle_v1, angle_v2);
+  double angle12_deg = angleDegree(angle_v1, angle_v2);
+  std::cout << "Angle between angle_v1 and angle_v2: " << angle12_rad
+            << " rad = " << angle12_deg << " deg" << std::endl;
+
+  // Test 45 degree angle
+  double angle13_rad = angleRad(angle_v1, angle_v3);
+  double angle13_deg = angleDegree(angle_v1, angle_v3);
+  std::cout << "Angle between angle_v1 and angle_v3: " << angle13_rad
+            << " rad = " << angle13_deg << " deg" << std::endl;
+
+  std::cout << std::endl;
+
+  // Test 9: Perpendicular and Parallel
+  std::cout << "9. Testing Perpendicular and Parallel:" << std::endl;
+
+  Vector<double> perp_x{1.0, 0.0, 0.0}; // Unit vector along x
+  Vector<double> perp_y{0.0, 1.0, 0.0}; // Unit vector along y
+  Vector<double> para_x{2.0, 0.0, 0.0}; // Parallel to perp_x
+
+  std::cout << "perp_x = " << perp_x << std::endl;
+  std::cout << "perp_y = " << perp_y << std::endl;
+  std::cout << "para_x = " << para_x << std::endl;
+
+  // Test perpendicular (should be true)
+  bool is_perp = isPerpendicular(perp_x, perp_y);
+  std::cout << "isPerpendicular(perp_x, perp_y): " << is_perp << std::endl;
+
+  // Test parallel (should be true)
+  bool is_para = isParallel(perp_x, para_x);
+  std::cout << "isParallel(perp_x, para_x): " << is_para << std::endl;
+
+  // Show verification values
+  std::cout << "Dot product perp_x·perp_y = " << dotProduct(perp_x, perp_y)
+            << std::endl;
+  std::cout << "Cross product magnitude |perp_x×para_x| = "
+            << magnitude(crossProduct(perp_x, para_x)) << std::endl;
+
+  std::cout << std::endl;
+
+  return 0;
 }
