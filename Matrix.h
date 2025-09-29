@@ -555,4 +555,24 @@ T det(const Matrix<T, nRows, nCols> &m) {
   }
 }
 
+// Tensor Product operator
+// Thay thế function tensorProduct cũ bằng:
+
+// Tensor Product function với explicit template parameters
+template <std::size_t R, std::size_t C, typename T>
+Matrix<T, R, C> makeTensorProduct(const Vector<T> &v1, const Vector<T> &v2) {
+  // Runtime validation
+  if (v1.size() != R || v2.size() != C) {
+    throw std::invalid_argument("Vector sizes must match template parameters");
+  }
+
+  Matrix<T, R, C> result{};
+  for (std::size_t i = 0; i < R; ++i) {
+    for (std::size_t j = 0; j < C; ++j) {
+      result(i, j) = v1[static_cast<int>(i)] * v2[static_cast<int>(j)];
+    }
+  }
+  return result;
+}
+
 #endif

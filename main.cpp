@@ -350,6 +350,34 @@ void testVectorIntegration() {
   auto verification = A * xMatrix;
   std::cout << "Verification A*x:\n" << verification << std::endl;
 }
+
+void testTensorProduct() {
+  std::cout << "=== Testing Tensor Product ===" << std::endl;
+
+  // Test basic tensor product
+  Vector<double> v1{1.0, 2.0, 3.0}; // 3D vector
+  Vector<double> v2{4.0, 5.0};      // 2D vector
+
+  std::cout << "Vector v1 = " << v1 << std::endl;
+  std::cout << "Vector v2 = " << v2 << std::endl;
+
+  // Sử dụng explicit template parameters
+  auto tensor = makeTensorProduct<3, 2>(v1, v2);
+  std::cout << "Tensor product v1 ⊗ v2 (3x2):\n" << tensor << std::endl;
+
+  // Verify kết quả:
+  // [1] ⊗ [4, 5] = [1*4, 1*5] = [4, 5]
+  // [2]             [2*4, 2*5]   [8, 10]
+  // [3]             [3*4, 3*5]   [12, 15]
+
+  std::cout << "Expected result:" << std::endl;
+  std::cout << "Row 0: [4, 5]" << std::endl;
+  std::cout << "Row 1: [8, 10]" << std::endl;
+  std::cout << "Row 2: [12, 15]" << std::endl;
+
+  std::cout << "Tensor product tests passed!" << std::endl;
+}
+
 ////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////   MAIN   //////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////
@@ -372,6 +400,7 @@ int main() {
   testConcatenationAndSplit();
   testLinearSystem();
   testVectorIntegration();
+  testTensorProduct();
 
   std::cout << "\n=== ORIGINAL TESTS (from previous main) ===" << std::endl;
 

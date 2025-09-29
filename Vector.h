@@ -205,7 +205,7 @@ template <typename T> T magnitude(const Vector<T> &v) {
   return std::sqrt(dotProduct(v, v));
 }
 
-// Unit vector
+// Normalize to Unit vector
 template <typename T> Vector<T> normalize(const Vector<T> &v) {
   T mag = magnitude(v);
   if (approximatelyEqualAbsRel(mag, T{0.0}))
