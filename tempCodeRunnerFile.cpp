@@ -1,2 +1,2 @@
-
-  std::cout << E.subMatrix(0, 0) << '\n';
+    iteration_array.push_back(iteration);
+    deltaX_array.push_back(deltaX);

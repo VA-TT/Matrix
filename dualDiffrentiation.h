@@ -74,6 +74,16 @@ Dual cos(const Dual &d) {
   return Dual{std::cos(d.getVal()), -std::sin(d.getVal()) * d.getDer()};
 }
 
+inline Dual operator-(const Dual &d, double b) {
+  return Dual{d.getVal() - b, d.getDer()};
+}
+inline Dual operator-(double a, const Dual &d) {
+  return Dual{a - d.getVal(), -d.getDer()};
+}
+inline Dual operator/(double a, const Dual &d) { // ít dùng nhưng đầy đủ
+  return Dual{a / d.getVal(), -a * d.getDer() / (d.getVal() * d.getVal())};
+}
+
 // Generic automatic differentiation - accepts any callable
 template <typename Func, typename T = double>
 auto automaticDiff(Func func, T x0) -> double {

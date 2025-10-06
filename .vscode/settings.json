@@ -66,6 +66,16 @@
         "xtr1common": "cpp",
         "xutility": "cpp",
         "fstream": "cpp",
-        "numbers": "cpp"
+        "numbers": "cpp",
+        "cstdarg": "cpp",
+        "cwctype": "cpp",
+        "bitset": "cpp",
+        "map": "cpp",
+        "set": "cpp",
+        "memory_resource": "cpp",
+        "mutex": "cpp",
+        "deque": "cpp",
+        "string_view": "cpp",
+        "__nullptr": "cpp"
     }
 }

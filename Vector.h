@@ -97,12 +97,23 @@ public:
     return os;
   }
 
+  //+= operator
+  Vector &operator+=(const Vector<T> &other) {
+    if (this->size() != other.size())
+      throw std::invalid_argument(
+          "Vectors must have the same dimension for operator+=.");
+    for (Index i{0}; i < this->size(); ++i)
+      (*this)[i] += other[i];
+    return *this;
+  }
   // Projection on another vector
   Vector<T> projection(const Vector &other) const {
     return normalize(other) * dotProduct(*this, normalize(other));
   }
 };
 
+/////////////////////////////////// END OF VECTOR CLASS
+//////////////////////////////////////////
 // Vector operators
 template <typename T>
 bool operator==(const Vector<T> &v1, const Vector<T> &v2) {
