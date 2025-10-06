@@ -362,7 +362,7 @@ void testTensorProduct() {
   std::cout << "Vector v2 = " << v2 << std::endl;
 
   // Sử dụng explicit template parameters
-  auto tensor = makeTensorProduct<3, 2>(v1, v2);
+  auto tensor = tensorProduct<3, 2>(v1, v2);
   std::cout << "Tensor product v1 ⊗ v2 (3x2):\n" << tensor << std::endl;
 
   // Verify kết quả:

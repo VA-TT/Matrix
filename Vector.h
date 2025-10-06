@@ -149,6 +149,13 @@ template <typename T> Vector<T> operator-(const Vector<T> &v) {
   return T{-1} * v;
 }
 
+// Scalar multiplication (vector / scalar)
+template <typename T> Vector<T> operator/(const Vector<T> &v, const T &k) {
+  assert(!approximatelyEqualAbsRel(k, 0.0) &&
+         "Can't divide by a number approximate to 0.");
+  return v * (1 / k);
+}
+
 // Vector subtraction
 template <typename T>
 Vector<T> operator-(const Vector<T> &v1, const Vector<T> &v2) {

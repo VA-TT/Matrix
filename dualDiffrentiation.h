@@ -1,5 +1,6 @@
 #include <cmath>
 #include <fstream>
+#include <functional>
 #include <iomanip>
 #include <iostream>
 #include <numbers>
@@ -66,8 +67,6 @@ public:
   }
 };
 
-template <typename T> T myFunc(T x) { return sin(x * x); }
-
 Dual sin(const Dual &d) {
   return Dual{std::sin(d.getVal()), std::cos(d.getVal()) * d.getDer()};
 }
@@ -75,9 +74,18 @@ Dual cos(const Dual &d) {
   return Dual{std::cos(d.getVal()), -std::sin(d.getVal()) * d.getDer()};
 }
 
-template <typename T> double automaticDiff(T x0) {
+// Generic automatic differentiation - accepts any callable
+template <typename Func, typename T = double>
+auto automaticDiff(Func func, T x0) -> double {
+  Dual d{static_cast<double>(x0), 1.0};
+  auto result = func(d);
+  return static_cast<double>(result.getDer());
+}
+
+template <typename T = double>
+T automaticDiff(std::function<Dual(Dual)> func, T x0) {
   Dual d{x0};
-  Dual result{myFunc(d)};
+  Dual result{func(d)};
   return result.getDer();
 }
 // int main()

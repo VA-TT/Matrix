@@ -171,6 +171,35 @@ public:
     return true;
   }
 
+  Matrix &operator+=(const Matrix &other) {
+    assert(this->getCols() == other.getCols() &&
+           this->getRows() == other.getRows() &&
+           "Unable to perform matrix addition.");
+
+    for (std::size_t i = 0; i < this->length(); ++i) {
+      (*this)[i] += other[i];
+    }
+    return *this;
+  }
+
+  Matrix &operator-=(const Matrix &other) {
+    assert(this->getCols() == other.getCols() &&
+           this->getRows() == other.getRows() &&
+           "Unable to perform matrix subtraction.");
+
+    for (std::size_t i = 0; i < this->length(); ++i) {
+      (*this)[i] -= other[i];
+    }
+    return *this;
+  }
+
+  Matrix &operator*=(T scalar) {
+    for (auto &element : m_elements) {
+      element *= scalar;
+    }
+    return *this;
+  }
+
   friend bool operator!=(const Matrix &m1, const Matrix &m2) {
     return !(m1 == m2);
   }
@@ -555,12 +584,9 @@ T det(const Matrix<T, nRows, nCols> &m) {
   }
 }
 
-// Tensor Product operator
-// Thay thế function tensorProduct cũ bằng:
-
 // Tensor Product function với explicit template parameters
 template <std::size_t R, std::size_t C, typename T>
-Matrix<T, R, C> makeTensorProduct(const Vector<T> &v1, const Vector<T> &v2) {
+Matrix<T, R, C> tensorProduct(const Vector<T> &v1, const Vector<T> &v2) {
   // Runtime validation
   if (v1.size() != R || v2.size() != C) {
     throw std::invalid_argument("Vector sizes must match template parameters");

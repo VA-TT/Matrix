@@ -1,6 +1,6 @@
 #include <cmath>
 
-inline double constitutiveLaw(double x) {
+inline double myFunc(double x) {
   return (8 * std::pow(x, 3) - 4 * std::pow(x, 2) - 3 * x + 1);
 }
 
@@ -10,7 +10,7 @@ inline double newtonRaphson(double x0, double epsilon, int max_iter = 1000) {
   double x_n = x0;
   const double tiny = 1e-16; // ngưỡng để tránh chia cho 0
   for (int i = 0; i < max_iter; ++i) {
-    double f_n = constitutiveLaw(x_n);
+    double f_n = myFunc(x_n);
     double f_prime = derivative(x_n);
 
     if (std::abs(f_prime) < tiny) {
