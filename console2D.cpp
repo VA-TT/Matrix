@@ -33,13 +33,14 @@ double a{10.0}; // Distance between node 0 and 1 = bar length
 Vector<double> x0{(i1 * a + i2 * a)};
 double l01{magnitude(x0)};          // length bar 1
 double l02{magnitude(x0 - a * i2)}; // length bar 2
-double force{45.0e3};               // Imposed Force
-double theta{20 * std::numbers::pi /
-             180}; // Inclined angle of the force with relative to vertical
-                   // converted to radian
+double force{150e3};                // Imposed Force
+double theta{20}; // Inclined angle of the force with relative to vertical
+double thetaRadian{theta * std::numbers::pi / 180}; // converte to radian
 
-Vector<double> f1{force * std::sin(theta) * i1}; // force's horizontal component
-Vector<double> f2{-force * std::cos(theta) * i2}; // force's vertical component
+Vector<double> f1{force * std::sin(thetaRadian) *
+                  i1}; // force's horizontal component
+Vector<double> f2{-force * std::cos(thetaRadian) *
+                  i2}; // force's vertical component
 Vector<double> externalForce{f1 + f2};
 
 // Section dimension

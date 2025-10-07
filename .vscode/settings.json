@@ -76,6 +76,14 @@
         "mutex": "cpp",
         "deque": "cpp",
         "string_view": "cpp",
-        "__nullptr": "cpp"
-    }
+        "__nullptr": "cpp",
+        "ranges": "cpp",
+        "__hash_table": "cpp",
+        "__split_buffer": "cpp",
+        "__tree": "cpp",
+        "queue": "cpp",
+        "stack": "cpp",
+        "unordered_set": "cpp"
+    },
+    "git.ignoreLimitWarning": true
 }
