@@ -16,7 +16,7 @@
  o------o
  | \    |
  | 2 \  | 3
- o------o
+ o----\-o
  | \    |
  |   \  |
  o 0   \o 1  
@@ -26,7 +26,7 @@
 // Model Parameters
 namespace modelParameters {
 // Problem dimension: Considering the 2D implementation first
-std::size_t d{2};
+constexpr std::size_t d{2};
 
 // Unit vectors
 Vector<double> i1{1.0, 0.0};
@@ -52,7 +52,7 @@ double b{0.02}, h{0.05};
 double A{b * h};
 double alpha{youngModulus * A};
 
-// External loads at nodes
+//  External loads at nodes
 Vector<Vector<double>> externalForce(nNodes);
 Vector<double> forceExternal{0, 15, 0, 15, 15, 15}; // External Force
 Vector<double> thetaDegree{90, 90, 90, 90,
@@ -97,7 +97,7 @@ int main() {
   int iteration{0};
   Vector<double> U(nNodes * d), UImposed(nNodes * d), UFree(nNodes * d);
 
-  // Xác định các nút tự do đúng cách
+  // Identify free nodes
   Vector<Index> nodeFree(nNodes - nodeImposed.size());
   Index nf{0};
   for (Index n{0}; n < static_cast<Index>(nNodes); ++n) {
@@ -116,9 +116,18 @@ int main() {
 
   assert(nf == static_cast<Index>(nodeFree.size()) &&
          "Mismatch in free node count");
+  // Rigidity in small deformation configuration: N = k e (u2 - u1)
+  Vector<double> k(nBars);
+  for (Index b{0}; b < nBars; ++b) {
+    k[b] = youngModulus * A / lengthBars[b];
+  }
+  std::cout << unitVectorBars;
+  Vector<Vector<double>> K(nBars);
+  for (Index b{0}; b < nBars; ++b) {
+    K[b] = k[b] * tensorProduct<d, d>(unitVectorBars[b], unitVectorBars[b]);
+  }
 
-    // N += U; // This line causes a dimension mismatch error
+  // N += U; // This line causes a dimension mismatch error
 
-  std::cout << N;
   return 0;
 }
