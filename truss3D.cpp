@@ -25,7 +25,7 @@
 
 // Model Parameters
 namespace modelParameters {
-// Problem dimension
+// Problem dimension: Considering the 2D implementation first
 std::size_t d{2};
 
 // Unit vectors
@@ -33,15 +33,18 @@ Vector<double> i1{1.0, 0.0};
 Vector<double> i2{0.0, 1.0};
 
 // Geometry of the truss
-constexpr std::size_t nNodes{6}; // number of bars
+constexpr std::size_t nNodes{6}; // number of nodes
 constexpr std::size_t nBars{8};  // number of bars
 
 Vector<Vector<double>> N{{0.0, 0.0},   {10.0, 0.0}, {0.0, 10.0},
                          {10.0, 10.0}, {0, 20.0},   {10.0, 20.0}};
-Vector<Vector<double>> O{N[0], N[2], N[1], N[2], N[2], N[3], N[3], N[4]};
-Vector<Vector<double>> E{N[2], N[1], N[3], N[3], N[4], N[4], N[5], N[5]};
+Vector<Vector<double>> barOrigin{N[0], N[2], N[1], N[2],
+                                 N[2], N[3], N[3], N[4]};
+Vector<Vector<double>> barEnd{N[2], N[1], N[3], N[3], N[4], N[4], N[5], N[5]};
 Vector<Vector<double>> vectorBars(nBars), unitVectorBars(nBars);
 Vector<double> lengthBars(nBars);
+Vector<Index> nodeImposed{0, 1};
+Vector<Index> nodeFree(nNodes - nodeImposed.size());
 
 // Section dimension
 double youngModulus{25e9}; // Module Young
@@ -64,21 +67,22 @@ int main() {
   using namespace modelParameters;
   // Checking the input
   assert(N.size() == nNodes && "numbers of nodes must be consistent!");
-  assert(O.size() == nBars && E.size() == nBars &&
+  assert(barOrigin.size() == nBars && barEnd.size() == nBars &&
          "numbers of bars must be consistent!");
   for (Index b{0}; b < nBars; ++b) {
-    vectorBars[b] = E[b] - O[b];
+    vectorBars[b] = barEnd[b] - barOrigin[b];
     lengthBars[b] = magnitude(vectorBars[b]);
     unitVectorBars[b] = vectorBars[b] / lengthBars[b];
   }
 
-  // Convert thetaDegree to radians
+  // Convert degrees → radians
   for (auto &angle : thetaDegree) {
-    angle *= (std::numbers::pi / 180);
+    angle *= (std::numbers::pi / 180.0);
   }
 
   // Calculate external forces
-  assert(forceExternal.size() == thetaDegree.size() == nNodes &&
+  assert(forceExternal.size() == thetaDegree.size() &&
+         thetaDegree.size() == nNodes &&
          "Numbers of nodal forces must respect number of nodes");
   Vector<double> thetaRadian{thetaDegree};
   Vector<double> f1(forceExternal.size()), f2(forceExternal.size()),
@@ -91,6 +95,30 @@ int main() {
 
   // Setting up
   int iteration{0};
+  Vector<double> U(nNodes * d), UImposed(nNodes * d), UFree(nNodes * d);
 
+  // Xác định các nút tự do đúng cách
+  Vector<Index> nodeFree(nNodes - nodeImposed.size());
+  Index nf{0};
+  for (Index n{0}; n < static_cast<Index>(nNodes); ++n) {
+    bool isImposed = false;
+    for (Index k{0}; k < static_cast<Index>(nodeImposed.size()); ++k) {
+      if (n == nodeImposed[k]) {
+        isImposed = true;
+        break;
+      }
+    }
+    if (!isImposed) {
+      nodeFree[nf] = n;
+      ++nf;
+    }
+  }
+
+  assert(nf == static_cast<Index>(nodeFree.size()) &&
+         "Mismatch in free node count");
+
+    // N += U; // This line causes a dimension mismatch error
+
+  std::cout << N;
   return 0;
 }
