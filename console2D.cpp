@@ -111,6 +111,7 @@ int main() {
     nablaF += -(func2(l2) / l2) * (I - tensorProduct<n, n>(e2, e2));
 
     // Solve the linear system
+    std::cout << tensorProduct<n, n>(e1, e1) << '\n';
     std::cout << std::setprecision(12);
     std::cout << "[DEBUG] l1=" << l1 << " l01=" << l01
               << " func1(l1)=" << func1(l1)

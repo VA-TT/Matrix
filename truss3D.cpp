@@ -121,12 +121,12 @@ int main() {
   for (Index b{0}; b < nBars; ++b) {
     k[b] = youngModulus * A / lengthBars[b];
   }
-  std::cout << unitVectorBars;
-  Vector<Vector<double>> K(nBars);
+
+  Vector<Matrix<double, d, d>> K(nBars);
   for (Index b{0}; b < nBars; ++b) {
     K[b] = k[b] * tensorProduct<d, d>(unitVectorBars[b], unitVectorBars[b]);
   }
-
+  std::cout << K;
   // N += U; // This line causes a dimension mismatch error
 
   return 0;

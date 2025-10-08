@@ -3,7 +3,6 @@
 
 // Consider return m_elements[(i - 1) * nCols + (j - 1)]; in order to accessing
 // the matrices with index starting from 1 in mathematic
-// Consider use signed index like did in Vector class : DONE
 // LU Decomposition (to be implemented) to be more optimized
 // Resize function?
 // EigenValue, EigenVector? Dyadic? Power Matrix?
@@ -68,25 +67,22 @@ public:
   // Accessing the elements in the array with one parameter (i)
   T &operator[](Index i) {
     assert(i >= 0 && i < this->length() && "Index out of bounds!");
-    return m_elements[i]; // i should be static_cast to signed literal to match
-                          // the std::array's style of accessing element [i],
-                          // but since nRows & nCols are already constexpr here,
-                          // everything is fine
+    return m_elements[static_cast<std::size_t>(i)];
   }
   const T &operator[](Index i) const {
     assert(i >= 0 && i < this->length() && "Index out of bounds!");
-    return m_elements[i];
+    return m_elements[static_cast<std::size_t>(i)];
   }
 
   // Accessing the elements in the matrices with two parameters (i,j)
   T &operator()(Index i, Index j) {
     assert(i < nRows && j < nCols && i >= 0 && j >= 0);
-    return m_elements[i * nCols + j];
+    return m_elements[static_cast<std::size_t>(i * nCols + j)];
   }
 
   const T &operator()(Index i, Index j) const {
     assert(i < nRows && j < nCols && i >= 0 && j >= 0);
-    return m_elements[i * nCols + j];
+    return m_elements[static_cast<std::size_t>(i * nCols + j)];
   }
 
   // Getters to get number of rows & columns + total elements numbers
