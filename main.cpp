@@ -294,7 +294,7 @@ void testConcatenationAndSplit() {
   std::cout << "Matrix A (2x2):\n" << A << std::endl;
   std::cout << "Matrix B (2x3):\n" << B << std::endl;
 
-  auto concat = concatenatedMatrix(A, B);
+  auto concat = concatenateMatrixHorizontal(A, B);
   std::cout << "Concatenated matrix A|B (2x5):\n" << concat << std::endl;
 
   // Test splitByColumn
@@ -342,7 +342,7 @@ void testVectorIntegration() {
   std::cout << "Matrix A:\n" << A << std::endl;
   std::cout << "Vector b: " << b << std::endl;
 
-  auto x = solveLinearSystem2(A, b);
+  auto x = solveLinearSystem(A, b);
   std::cout << "Solution x:\n" << x << std::endl;
 
   // Convert Vector back to Matrix for multiplication
@@ -352,30 +352,38 @@ void testVectorIntegration() {
 }
 
 void testTensorProduct() {
-  std::cout << "=== Testing Tensor Product ===" << std::endl;
+  std::cout << "\n=== Testing Tensor Product (Direct Method) ===\n";
 
-  // Test basic tensor product
-  Vector<double> v1{1.0, 2.0, 3.0}; // 3D vector
-  Vector<double> v2{4.0, 5.0};      // 2D vector
+  // ✅ FIX: Use flat initializer list
+  Matrix<double, 2, 2> A{1, 2, 3, 4}; // Row-major: [1,2; 3,4]
+  Matrix<double, 2, 2> B{5, 6, 7, 8}; // Row-major: [5,6; 7,8]
 
-  std::cout << "Vector v1 = " << v1 << std::endl;
-  std::cout << "Vector v2 = " << v2 << std::endl;
+  auto result = tensorProduct(A, B);
 
-  // Sử dụng explicit template parameters
-  auto tensor = tensorProduct<3, 2>(v1, v2);
-  std::cout << "Tensor product v1 ⊗ v2 (3x2):\n" << tensor << std::endl;
+  std::cout << "A (2×2):\n" << A << "\n";
+  std::cout << "B (2×2):\n" << B << "\n";
+  std::cout << "A ⊗ B (4×4):\n" << result << "\n";
 
-  // Verify kết quả:
-  // [1] ⊗ [4, 5] = [1*4, 1*5] = [4, 5]
-  // [2]             [2*4, 2*5]   [8, 10]
-  // [3]             [3*4, 3*5]   [12, 15]
+  std::cout << "Tensor product test passed!\n";
+}
 
-  std::cout << "Expected result:" << std::endl;
-  std::cout << "Row 0: [4, 5]" << std::endl;
-  std::cout << "Row 1: [8, 10]" << std::endl;
-  std::cout << "Row 2: [12, 15]" << std::endl;
+void testTensorProductBlocks() {
+  std::cout << "\n=== Testing Tensor Product (Block Method) ===\n";
 
-  std::cout << "Tensor product tests passed!" << std::endl;
+  Matrix<double, 2, 2> A = {1, 2, 3, 4};
+  Matrix<double, 2, 2> B = {5, 6, 7, 8};
+
+  auto result = tensorProduct(A, B);
+
+  std::cout << "A:\n" << A << "\n";
+  std::cout << "B:\n" << B << "\n";
+  std::cout << "A ⊗ B (4×4):\n" << result << "\n";
+
+  // Expected:
+  // | 1*B  2*B | = | 5  6 | 10 12 |
+  // | 3*B  4*B |   | 7  8 | 14 16 |
+  //                |15 18 | 20 24 |
+  //                |21 24 | 28 32 |
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -401,6 +409,7 @@ int main() {
   testLinearSystem();
   testVectorIntegration();
   testTensorProduct();
+  testTensorProductBlocks();
 
   std::cout << "\n=== ORIGINAL TESTS (from previous main) ===" << std::endl;
 
@@ -523,8 +532,8 @@ int main() {
   // Test 4a: Testing CrossProduct2 (Levi-Civita Method)
   std::cout << "4a. Testing CrossProduct2 (Levi-Civita Method):" << std::endl;
   auto cross2 = crossProduct2(u1, u2);
-  std::cout << "Cross product2 u1×u2 = " << cross2 << std::endl;
-  std::cout << "crossProduct == crossProduct2: "
+  std::cout << "Cross product2 u1 x u2 = " << cross2 << std::endl;
+  std::cout << " crossProduct == crossProduct2 : "
             << (cross == cross2 ? "✓ SAME" : "✗ DIFFERENT") << std::endl;
   std::cout << std::endl;
 

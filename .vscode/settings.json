@@ -84,7 +84,8 @@
         "queue": "cpp",
         "stack": "cpp",
         "unordered_set": "cpp",
-        "cassert": "cpp"
+        "cassert": "cpp",
+        "__config": "cpp"
     },
     "git.ignoreLimitWarning": true
 }

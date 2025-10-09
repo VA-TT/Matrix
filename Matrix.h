@@ -123,7 +123,7 @@ public:
       out << std::fixed << std::setprecision(3);
     }
 
-    constexpr int tab = 10;
+    constexpr int tab = 15;
     for (Index i = 0; i < nRows; ++i) {
       out << "|";
       for (Index j = 0; j < nCols; ++j) {
@@ -309,7 +309,8 @@ public:
     Matrix<T, nRows, nCols> inverseMatrix{};
     Matrix<T, nRows, nCols> testIdentity{};
     Matrix<T, nRows, (nCols + nCols)> augmentedMatrix{
-        concatenatedMatrix(*this, Matrix<T, nRows, nCols>::identity())};
+        concatenateMatrixHorizontal(*this,
+                                    Matrix<T, nRows, nCols>::identity())};
     // check det first
     if (approximatelyEqualAbsRel(det(*this), 0.0)) {
       throw std::invalid_argument("Determinant of Matrix is 0, hence matrix is "
@@ -444,27 +445,52 @@ public:
 
 /////////////////////////// END OF MATRIX CLASS//////////////////////////
 
-// Concatenate 2 matrices into augemented matrix
-
+// Concatenate 2 matrices horizontally (into augemented matrix)
+//  (A) + (B) = ( A B )
 template <typename T, Index R1, Index C1, Index R2, Index C2>
-Matrix<T, R1, (C1 + C2)> concatenatedMatrix(const Matrix<T, R1, C1> &A,
-                                            const Matrix<T, R2, C2> &B) {
+Matrix<T, R1, (C1 + C2)>
+concatenateMatrixHorizontal(const Matrix<T, R1, C1> &A,
+                            const Matrix<T, R2, C2> &B) {
   assert(R1 == R2 && "The number of rows of both matrices must match to create "
                      "an concatenated matrix.\n");
-  Matrix<T, R1, (C1 + C2)> concatenatedMatrix{};
+  Matrix<T, R1, (C1 + C2)> result{};
   for (Index i = 0; i < R1; ++i)
     for (Index j = 0; j < (C1 + C2); ++j) {
       if (j < C1) {
         assert(j < A.getCols() && j >= 0 &&
                "Error index exceeding matrix's size.\n");
-        concatenatedMatrix(i, j) = A(i, j);
+        result(i, j) = A(i, j);
       } else {
         assert((j - C1) < B.getCols() && j >= 0 &&
                "Error index exceeding matrix's size.\n");
-        concatenatedMatrix(i, j) = B(i, j - C1);
+        result(i, j) = B(i, j - C1);
       }
     }
-  return concatenatedMatrix;
+  return result;
+}
+
+// Concatenate 2 matrices vertically
+//   |A|  = | A |
+// + |B|    | B |
+template <typename T, Index R1, Index C1, Index R2, Index C2>
+Matrix<T, (R1 + R2), C1> concatenateMatrixVertical(const Matrix<T, R1, C1> &A,
+                                                   const Matrix<T, R2, C2> &B) {
+  assert(C1 == C2 && "The number of columns of both matrices must match for "
+                     "vertical concatenation.");
+  Matrix<T, (R1 + R2), C1> result{};
+  for (Index i = 0; i < (R1 + R2); ++i)
+    for (Index j = 0; j < C1; ++j) {
+      if (i < R1) {
+        assert(i < A.getRows() && i >= 0 &&
+               "Error index exceeding matrix's size.\n");
+        result(i, j) = A(i, j);
+      } else {
+        assert((i - R1) < B.getRows() && i >= 0 &&
+               "Error index exceeding matrix's size.\n");
+        result(i, j) = B(i - R1, j);
+      }
+    }
+  return result;
 }
 
 // Solve Ax = B by taking x = A.inverse()*B
@@ -481,7 +507,7 @@ Matrix<T, R1, 1> solveLinearSystem(const Matrix<T, R1, C1> &A,
 
 // Solve Ax = B by taking x = A.inverse()*B
 template <typename T, Index R1, Index C1>
-Vector<T> solveLinearSystem2(const Matrix<T, R1, C1> &A, const Vector<T> &B) {
+Vector<T> solveLinearSystem(const Matrix<T, R1, C1> &A, const Vector<T> &B) {
   if (B.size() != R1) {
     throw std::invalid_argument("Vector B size must match matrix A rows");
   }
@@ -586,7 +612,7 @@ T det(const Matrix<T, nRows, nCols> &m) {
   }
 }
 
-// Tensor Product function với explicit template parameters
+// Tensor Product function with explicit template parameters for vectors
 template <Index R, Index C, typename T>
 Matrix<T, R, C> tensorProduct(const Vector<T> &v1, const Vector<T> &v2) {
   // Runtime validation
@@ -600,6 +626,26 @@ Matrix<T, R, C> tensorProduct(const Vector<T> &v1, const Vector<T> &v2) {
       result(i, j) = v1[i] * v2[j];
     }
   }
+  return result;
+}
+
+template <typename T, Index R1, Index C1, Index R2, Index C2>
+Matrix<T, R1 * R2, C1 * C2> tensorProduct(const Matrix<T, R1, C1> &A,
+                                          const Matrix<T, R2, C2> &B) {
+  Matrix<T, R1 * R2, C1 * C2> result{};
+
+  // Each element A(i,j) multiplies the entire matrix B
+  for (Index i = 0; i < R1; ++i) {
+    for (Index j = 0; j < C1; ++j) {
+      // Fill block at position (i*R2, j*C2)
+      for (Index k = 0; k < R2; ++k) {
+        for (Index l = 0; l < C2; ++l) {
+          result(i * R2 + k, j * C2 + l) = A(i, j) * B(k, l);
+        }
+      }
+    }
+  }
+
   return result;
 }
 

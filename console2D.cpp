@@ -20,7 +20,7 @@
 
 // Model Parameters
 namespace modelParameters {
-constexpr std::size_t n{2}; // number of equilibrium equations
+constexpr Index n{2}; // number of equilibrium equations
 
 // Unit vectors
 Vector<double> i1{1.0, 0.0};
@@ -119,7 +119,7 @@ int main() {
               << " autoDiff(func1,l1)=" << automaticDiff(func1, l1) << '\n';
     std::cout << "nabla F: " << nablaF << '\n';
     std::cout << "Fk: " << Fk << '\n';
-    Vector<double> deltaX_increment = solveLinearSystem2(nablaF, -Fk);
+    Vector<double> deltaX_increment = solveLinearSystem(nablaF, -Fk);
     deltaX += deltaX_increment;
 
     // Saving the output

@@ -26,21 +26,22 @@
 // Model Parameters
 namespace modelParameters {
 // Problem dimension: Considering the 2D implementation first
-constexpr std::size_t d{2};
+constexpr Index d{2};
 
 // Unit vectors
 Vector<double> i1{1.0, 0.0};
 Vector<double> i2{0.0, 1.0};
 
 // Geometry of the truss
-constexpr std::size_t nNodes{6}; // number of nodes
-constexpr std::size_t nBars{8};  // number of bars
+constexpr Index nNodes{6}; // number of nodes
+constexpr Index nBars{8};  // number of bars
 
-Vector<Vector<double>> N{{0.0, 0.0},   {10.0, 0.0}, {0.0, 10.0},
-                         {10.0, 10.0}, {0, 20.0},   {10.0, 20.0}};
-Vector<Vector<double>> barOrigin{N[0], N[2], N[1], N[2],
-                                 N[2], N[3], N[3], N[4]};
-Vector<Vector<double>> barEnd{N[2], N[1], N[3], N[3], N[4], N[4], N[5], N[5]};
+Vector<Vector<double>> nodes{{0.0, 0.0},   {10.0, 0.0}, {0.0, 10.0},
+                             {10.0, 10.0}, {0, 20.0},   {10.0, 20.0}};
+Vector<Vector<double>> barOrigin{nodes[0], nodes[2], nodes[1], nodes[2],
+                                 nodes[2], nodes[3], nodes[3], nodes[4]};
+Vector<Vector<double>> barEnd{nodes[2], nodes[1], nodes[3], nodes[3],
+                              nodes[4], nodes[4], nodes[5], nodes[5]};
 Vector<Vector<double>> vectorBars(nBars), unitVectorBars(nBars);
 Vector<double> lengthBars(nBars);
 Vector<Index> nodeImposed{0, 1};
@@ -66,7 +67,7 @@ Vector<double> thetaDegree{90, 90, 90, 90,
 int main() {
   using namespace modelParameters;
   // Checking the input
-  assert(N.size() == nNodes && "numbers of nodes must be consistent!");
+  assert(nodes.size() == nNodes && "numbers of nodes must be consistent!");
   assert(barOrigin.size() == nBars && barEnd.size() == nBars &&
          "numbers of bars must be consistent!");
   for (Index b{0}; b < nBars; ++b) {
@@ -87,7 +88,7 @@ int main() {
   Vector<double> thetaRadian{thetaDegree};
   Vector<double> f1(forceExternal.size()), f2(forceExternal.size()),
       externalForce(forceExternal.size());
-  for (std::size_t i = 0; i < forceExternal.size(); ++i) {
+  for (Index i = 0; i < forceExternal.size(); ++i) {
     f1[i] = forceExternal[i] * std::sin(thetaRadian[i]) * i1[0];
     f2[i] = -forceExternal[i] * std::cos(thetaRadian[i]) * i2[1];
     externalForce[i] = f1[i] + f2[i];
@@ -100,9 +101,9 @@ int main() {
   // Identify free nodes
   Vector<Index> nodeFree(nNodes - nodeImposed.size());
   Index nf{0};
-  for (Index n{0}; n < static_cast<Index>(nNodes); ++n) {
+  for (Index n{0}; n < nNodes; ++n) {
     bool isImposed = false;
-    for (Index k{0}; k < static_cast<Index>(nodeImposed.size()); ++k) {
+    for (Index k{0}; k < nodeImposed.size(); ++k) {
       if (n == nodeImposed[k]) {
         isImposed = true;
         break;
@@ -114,19 +115,43 @@ int main() {
     }
   }
 
-  assert(nf == static_cast<Index>(nodeFree.size()) &&
-         "Mismatch in free node count");
+  assert(nf == nodeFree.size() && "Mismatch in free node count");
+
   // Rigidity in small deformation configuration: N = k e (u2 - u1)
   Vector<double> k(nBars);
   for (Index b{0}; b < nBars; ++b) {
     k[b] = youngModulus * A / lengthBars[b];
   }
 
-  Vector<Matrix<double, d, d>> K(nBars);
+  Vector<Matrix<double, d, d>> elementaryApplicationK(nBars);
   for (Index b{0}; b < nBars; ++b) {
-    K[b] = k[b] * tensorProduct<d, d>(unitVectorBars[b], unitVectorBars[b]);
+    elementaryApplicationK[b] =
+        k[b] * tensorProduct<d, d>(unitVectorBars[b], unitVectorBars[b]);
   }
-  std::cout << K;
+  std::cout << elementaryApplicationK;
+
+  Matrix<double, 2, 2> connectivityMatrix{1.0, -1.0, -1.0, 1.0};
+  Vector<Matrix<double, d * 2, d * 2>> elementaryK(nBars);
+  for (Index b{0}; b < nBars; ++b) {
+    elementaryK[b] =
+        tensorProduct(connectivityMatrix, elementaryApplicationK[b]);
+  }
+  std::cout << elementaryK;
+
+  Vector<Matrix<double, d, d * nNodes>> C(nNodes);
+
+  for (Index n{0}; n < nNodes; ++n) {
+    Matrix<double, d, n> C1{};
+    Matrix<double, d, d> C2{Matrix<double, d, d>::identity()};
+    Matrix<double, d, d *(nNodes - n - d)> C3{};
+    C[n] = concatenateMatrixHorizontal(concatenateMatrixHorizontal(C1, C2), C3);
+  }
+
+  Matrix<double, d * nNodes, d * nNodes> assemblyStiffnessK();
+  for (Index b{0}; b < nBars; ++b) {
+    assemblyStiffnessK += (C[barEnd[b]] - C[barOrigin[b]]) * elementaryK *
+                          (C[barEnd[b]] - C[barOrigin[b]]);
+  }
   // N += U; // This line causes a dimension mismatch error
 
   return 0;
