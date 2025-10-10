@@ -38,10 +38,9 @@ constexpr Index nBars{8};  // number of bars
 
 Vector<Vector<double>> nodes{{0.0, 0.0},   {10.0, 0.0}, {0.0, 10.0},
                              {10.0, 10.0}, {0, 20.0},   {10.0, 20.0}};
-Vector<Vector<double>> barOrigin{nodes[0], nodes[2], nodes[1], nodes[2],
-                                 nodes[2], nodes[3], nodes[3], nodes[4]};
-Vector<Vector<double>> barEnd{nodes[2], nodes[1], nodes[3], nodes[3],
-                              nodes[4], nodes[4], nodes[5], nodes[5]};
+// Bar connectivity: store node indices for each bar's origin and end
+Vector<Index> barOrigin{0, 2, 1, 2, 2, 3, 3, 4};
+Vector<Index> barEnd{2, 1, 3, 3, 4, 4, 5, 5};
 Vector<Vector<double>> vectorBars(nBars), unitVectorBars(nBars);
 Vector<double> lengthBars(nBars);
 Vector<Index> nodeImposed{0, 1};
@@ -71,7 +70,8 @@ int main() {
   assert(barOrigin.size() == nBars && barEnd.size() == nBars &&
          "numbers of bars must be consistent!");
   for (Index b{0}; b < nBars; ++b) {
-    vectorBars[b] = barEnd[b] - barOrigin[b];
+    // compute bar vector from node coordinates
+    vectorBars[b] = nodes[barEnd[b]] - nodes[barOrigin[b]];
     lengthBars[b] = magnitude(vectorBars[b]);
     unitVectorBars[b] = vectorBars[b] / lengthBars[b];
   }
@@ -140,16 +140,24 @@ int main() {
 
   Vector<Matrix<double, d, d * nNodes>> C(nNodes);
 
+  // Build connectivity matrices C[n] (d x (d * nNodes)) where an identity
+  // block of size dxd is placed at the columns corresponding to node n.
+  // Note: d and nNodes are constexpr so d * nNodes is a compile-time
+  // constant and the Matrix template can be instantiated.
+  const auto Id = Matrix<double, d, d>::identity();
   for (Index n{0}; n < nNodes; ++n) {
-    Matrix<double, d, n> C1{};
-    Matrix<double, d, d> C2{Matrix<double, d, d>::identity()};
-    Matrix<double, d, d *(nNodes - n - d)> C3{};
-    C[n] = concatenateMatrixHorizontal(concatenateMatrixHorizontal(C1, C2), C3);
+    Matrix<double, d, d * nNodes> Ci{}; // initialized to zero
+    for (Index i = 0; i < d; ++i) {
+      for (Index j = 0; j < d; ++j) {
+        Ci(i, n * d + j) = Id(i, j);
+      }
+    }
+    C[n] = Ci;
   }
 
-  Matrix<double, d * nNodes, d * nNodes> assemblyStiffnessK();
+  Matrix<double, d * nNodes, d * nNodes> assemblyStiffnessK{};
   for (Index b{0}; b < nBars; ++b) {
-    assemblyStiffnessK += (C[barEnd[b]] - C[barOrigin[b]]) * elementaryK *
+    assemblyStiffnessK += (C[barEnd[b]] - C[barOrigin[b]]) * elementaryK[b] *
                           (C[barEnd[b]] - C[barOrigin[b]]);
   }
   // N += U; // This line causes a dimension mismatch error
