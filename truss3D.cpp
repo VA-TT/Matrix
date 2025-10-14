@@ -26,18 +26,20 @@
 // Model Parameters
 namespace modelParameters {
 // Problem dimension: Considering the 2D implementation first
-constexpr Index d{2};
+constexpr Index d{3};
 
 // Unit vectors
-Vector<double> i1{1.0, 0.0};
-Vector<double> i2{0.0, 1.0};
+Vector<double> i1{1.0, 0.0, 0.0};
+Vector<double> i2{0.0, 1.0, 0.0};
+Vector<double> i3{0.0, 0.0, 1.0};
 
 // Geometry of the truss
 constexpr Index nNodes{6}; // number of nodes
 constexpr Index nBars{8};  // number of bars
 
-Vector<Vector<double>> nodes{{0.0, 0.0},   {10.0, 0.0}, {0.0, 10.0},
-                             {10.0, 10.0}, {0, 20.0},   {10.0, 20.0}};
+Vector<Vector<double>> nodes{{0.0, 0.0, 0.0},  {10.0, 0.0, 0.0},
+                             {0.0, 0.0, 10.0}, {10.0, 0.0, 10.0},
+                             {0.0, 0.0, 20.0}, {10.0, 0.0, 20.0}};
 // Bar connectivity: store node indices for each bar's origin and end
 Vector<Index> barOrigin{0, 2, 1, 2, 2, 3, 3, 4};
 Vector<Index> barEnd{2, 1, 3, 3, 4, 4, 5, 5};
@@ -75,8 +77,8 @@ int main() {
     lengthBars[b] = magnitude(vectorBars[b]);
     unitVectorBars[b] = vectorBars[b] / lengthBars[b];
   }
-
-  // Convert degrees → radians
+  std::cout << unitVectorBars;
+  // Convert degrees to radians
   for (auto &angle : thetaDegree) {
     angle *= (std::numbers::pi / 180.0);
   }
@@ -123,6 +125,7 @@ int main() {
     k[b] = youngModulus * A / lengthBars[b];
   }
 
+  std::cout << k;
   Vector<Matrix<double, d, d>> elementaryApplicationK(nBars);
   for (Index b{0}; b < nBars; ++b) {
     elementaryApplicationK[b] =
@@ -130,20 +133,17 @@ int main() {
   }
   std::cout << elementaryApplicationK;
 
-  Matrix<double, 2, 2> connectivityMatrix{1.0, -1.0, -1.0, 1.0};
-  Vector<Matrix<double, d * 2, d * 2>> elementaryK(nBars);
-  for (Index b{0}; b < nBars; ++b) {
-    elementaryK[b] =
-        tensorProduct(connectivityMatrix, elementaryApplicationK[b]);
-  }
-  std::cout << elementaryK;
+  // Matrix<double, 2, 2> connectivityMatrix{1.0, -1.0, -1.0, 1.0};
+  // Vector<Matrix<double, d * 2, d * 2>> elementaryK(nBars);
+  // for (Index b{0}; b < nBars; ++b) {
+  //   elementaryK[b] =
+  //       tensorProduct(connectivityMatrix, elementaryApplicationK[b]);
+  // }
+  // std::cout << elementaryK;
 
+  // Connectivity Matrix
   Vector<Matrix<double, d, d * nNodes>> C(nNodes);
 
-  // Build connectivity matrices C[n] (d x (d * nNodes)) where an identity
-  // block of size dxd is placed at the columns corresponding to node n.
-  // Note: d and nNodes are constexpr so d * nNodes is a compile-time
-  // constant and the Matrix template can be instantiated.
   const auto Id = Matrix<double, d, d>::identity();
   for (Index n{0}; n < nNodes; ++n) {
     Matrix<double, d, d * nNodes> Ci{}; // initialized to zero
@@ -153,14 +153,18 @@ int main() {
       }
     }
     C[n] = Ci;
+    // std::cout << C[n].getCols() << "  and  " << C[n].getRows() << std::endl;
   }
 
   Matrix<double, d * nNodes, d * nNodes> assemblyStiffnessK{};
+
   for (Index b{0}; b < nBars; ++b) {
-    assemblyStiffnessK += (C[barEnd[b]] - C[barOrigin[b]]) * elementaryK[b] *
+    assemblyStiffnessK += (C[barEnd[b]] - C[barOrigin[b]]).transpose() *
+                          elementaryApplicationK[b] *
                           (C[barEnd[b]] - C[barOrigin[b]]);
   }
-  // N += U; // This line causes a dimension mismatch error
+  // std::cout << "Checkpoint: finished assembly loop" << std::endl;
+  // // N += U; // This line causes a dimension mismatch error
 
-  return 0;
+  // return 0;
 }
