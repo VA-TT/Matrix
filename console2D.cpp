@@ -82,14 +82,21 @@ int main() {
 
   std::cout << "=== Newton-Raphson Iteration ===" << std::endl;
 
+  Vector<double> x(2);
+  double l1{}, l2{};
+  Vector<double> e1(2), e2(2);
+  Matrix<double, n, n> nablaF{};
+  auto I = Matrix<double, 2, 2>::identity();
+  Vector<double> deltaX_increment(2);
+
   // Use Newton_Raphson method to find the approximation with tolerance
   while (iteration < max_iteration) {
     // Calculate updated informations
-    Vector<double> x{x0 + deltaX};
-    double l1{magnitude(x)};
-    double l2{magnitude(x - a * i2)};
-    Vector<double> e1{x / l1};
-    Vector<double> e2{(x - a * i2) / l2};
+    x = x0 + deltaX;
+    l1 = magnitude(x);
+    l2 = magnitude(x - a * i2);
+    e1 = x / l1;
+    e2 = (x - a * i2) / l2;
 
     // Calculate F at iteration k
     Fk = -func1(l1) * e1 - func2(l2) * e2 + externalForce;
@@ -103,8 +110,7 @@ int main() {
     }
 
     // Calculate NablaF at itaration k
-    auto I = Matrix<double, 2, 2>::identity();
-    Matrix<double, n, n> nablaF{};
+    nablaF = Matrix<double, n, n>{};
     nablaF += -automaticDiff(func1, l1) * tensorProduct<n, n>(e1, e1);
     nablaF += -automaticDiff(func2, l2) * tensorProduct<n, n>(e2, e2);
     nablaF += -(func1(l1) / l1) * (I - tensorProduct<n, n>(e1, e1));
@@ -119,7 +125,7 @@ int main() {
               << " autoDiff(func1,l1)=" << automaticDiff(func1, l1) << '\n';
     std::cout << "nabla F: " << nablaF << '\n';
     std::cout << "Fk: " << Fk << '\n';
-    Vector<double> deltaX_increment = solveLinearSystem(nablaF, -Fk);
+    deltaX_increment = solveLinearSystem(nablaF, -Fk);
     deltaX += deltaX_increment;
 
     // Saving the output

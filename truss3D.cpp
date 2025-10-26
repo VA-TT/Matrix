@@ -23,6 +23,8 @@
 ///    ///
 #endif
 
+// Small deformation truss
+
 // Model Parameters
 namespace modelParameters {
 // Problem dimension: Considering the 2D implementation first
@@ -46,6 +48,7 @@ Vector<Index> barEnd{2, 1, 3, 3, 4, 4, 5, 5};
 Vector<Vector<double>> vectorBars(nBars), unitVectorBars(nBars);
 Vector<double> lengthBars(nBars);
 Vector<Index> nodeImposed{0, 1};
+Vector<Vector<double>> displacementImposed{{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}};
 Vector<Index> nodeFree(nNodes - nodeImposed.size());
 
 // Section dimension
@@ -54,14 +57,15 @@ double b{0.02}, h{0.05};
 double A{b * h};
 double alpha{youngModulus * A};
 
-//  External loads at nodes
-Vector<Vector<double>> externalForce(nNodes);
-Vector<double> forceExternal{0, 15, 0, 15, 15, 15}; // External Force
-Vector<double> thetaDegree{90, 90, 90, 90,
-                           90, 90}; // Inclined angle of the force with relative
-                                    // to vertical converted to radian)
-
-// Initialization of externalForce will be done in main()
+//  External loads at nodes - Direct 3D force vectors
+Vector<Vector<double>> forceF{
+    {0.0, 0.0, 0.0},   // Node 0: no force
+    {0.0, 0.0, 0.0},   // Node 1: no force
+    {0.0, -15.0, 0.0}, // Node 2: 15N downward (y-direction)
+    {0.0, -15.0, 0.0}, // Node 3: 15N downward
+    {0.0, -15.0, 0.0}, // Node 4: 15N downward
+    {0.0, -15.0, 0.0}  // Node 5: 15N downward
+};
 
 } // namespace modelParameters
 
@@ -77,24 +81,15 @@ int main() {
     lengthBars[b] = magnitude(vectorBars[b]);
     unitVectorBars[b] = vectorBars[b] / lengthBars[b];
   }
-  std::cout << unitVectorBars;
-  // Convert degrees to radians
-  for (auto &angle : thetaDegree) {
-    angle *= (std::numbers::pi / 180.0);
-  }
+  std::cout << "Unit vectors for each bar:\n" << unitVectorBars << std::endl;
 
-  // Calculate external forces
-  assert(forceExternal.size() == thetaDegree.size() &&
-         thetaDegree.size() == nNodes &&
-         "Numbers of nodal forces must respect number of nodes");
-  Vector<double> thetaRadian{thetaDegree};
-  Vector<double> f1(forceExternal.size()), f2(forceExternal.size()),
-      externalForce(forceExternal.size());
-  for (Index i = 0; i < forceExternal.size(); ++i) {
-    f1[i] = forceExternal[i] * std::sin(thetaRadian[i]) * i1[0];
-    f2[i] = -forceExternal[i] * std::cos(thetaRadian[i]) * i2[1];
-    externalForce[i] = f1[i] + f2[i];
+  // Verify external forces
+  assert(forceF.size() == nNodes &&
+         "Number of external forces must match number of nodes");
+  for (Index i = 0; i < nNodes; ++i) {
+    assert(forceF[i].size() == d && "Each force vector must have d components");
   }
+  std::cout << "External forces at nodes:\n" << forceF << std::endl;
 
   // Setting up
   int iteration{0};
@@ -103,8 +98,9 @@ int main() {
   // Identify free nodes
   Vector<Index> nodeFree(nNodes - nodeImposed.size());
   Index nf{0};
+  bool isImposed = false;
   for (Index n{0}; n < nNodes; ++n) {
-    bool isImposed = false;
+    isImposed = false;
     for (Index k{0}; k < nodeImposed.size(); ++k) {
       if (n == nodeImposed[k]) {
         isImposed = true;
@@ -145,8 +141,9 @@ int main() {
   Vector<Matrix<double, d, d * nNodes>> C(nNodes);
 
   const auto Id = Matrix<double, d, d>::identity();
+  Matrix<double, d, d * nNodes> Ci{};
   for (Index n{0}; n < nNodes; ++n) {
-    Matrix<double, d, d * nNodes> Ci{}; // initialized to zero
+    Ci = Matrix<double, d, d * nNodes>{};
     for (Index i = 0; i < d; ++i) {
       for (Index j = 0; j < d; ++j) {
         Ci(i, n * d + j) = Id(i, j);
@@ -163,8 +160,47 @@ int main() {
                           elementaryApplicationK[b] *
                           (C[barEnd[b]] - C[barOrigin[b]]);
   }
-  // std::cout << "Checkpoint: finished assembly loop" << std::endl;
-  // // N += U; // This line causes a dimension mismatch error
+  // Check the singularity of stiffness matrix K
+  std::cout << std::boolalpha << (det(assemblyStiffnessK) == 0) << std::endl;
 
-  // return 0;
+  // Penalization method (encastree)
+  // Stifness matrix and force adjustment
+  assert(nodeImposed.size() == displacementImposed.size() &&
+         "Size of imposed nodes must be consistent!");
+  double epsilonInverse{1.0 / 1e-8};
+  int i{};
+  for (auto n : nodeImposed) {
+    for (int k = 0; k < 3; k++) // Encastre tous 3 directions
+    {
+      i = 3 * n + k;
+      assemblyStiffnessK(i, i) += 1 / epsilonInverse;
+      forceF[3 * n][k] += epsilonInverse * displacementImposed[n][k];
+    }
+  }
+
+  // Solve the linear system K'U' = F':
+  Vector<double> increment_displacement{
+      solveLinearSystem(assemblyStiffnessK, forceF)};
+
+  // Update the position
+  Vector<double> totalDispalcementU;
+  totalDispalcementU += increment_displacement;
+
+  // // Saving the output
+  // iteration_array.push_back(iteration);
+  // deltaX_array.push_back(deltaX);
+
+  // Calculate the reaction at the end of the loop
+  Index i{0};
+  Vector<double> reactionR{nodeImposed};
+  for (auto n : nodeImposed) {
+    for (int k = 0; k < 3; k++) // Encastre tous 3 directions
+    {
+      i = 3 * n + k;
+      reactionR[n][k] = epsilonInverse * (totalDispalcementU[i] - nodeImposed[n][k]);
+    }
+  }
+
+  // iteration++;
+  return 0;
 }
